@@ -8,7 +8,7 @@ from numerous.engine.model.utils import wrap_function
 
 def get_eq_prefix():
     import random, string
-    return ''.join(random.choice(string.ascii_letters) for i in range(4)) + '_'
+    return ''.join(random.choice(string.ascii_letters) for _ in range(4)) + '_'
 
 
 def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
@@ -34,17 +34,24 @@ def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
 
             right_ast = node_to_ast(right_node, g, var_def, ctxread=ctxread)
 
-            ast_binop = ast.BinOp(left=left_ast, right=right_ast, op=g.get(n, 'ast_op'), lineno=0, col_offset=0)
-            return ast_binop
-
+            return ast.BinOp(
+                left=left_ast,
+                right=right_ast,
+                op=g.get(n, 'ast_op'),
+                lineno=0,
+                col_offset=0,
+            )
         elif na == ast.UnaryOp:
             operand = g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.OPERAND)[1][0][0]
 
             operand_ast = node_to_ast(operand, g, var_def, ctxread=ctxread)
 
-            ast_unop = ast.UnaryOp(operand=operand_ast, op=g.get(n, 'ast_op'), lineno=0, col_offset=0)
-            return ast_unop
-
+            return ast.UnaryOp(
+                operand=operand_ast,
+                op=g.get(n, 'ast_op'),
+                lineno=0,
+                col_offset=0,
+            )
         elif na == ast.Call:
 
             args = [ii[0] for ii in g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.ARGUMENT)[1]]
@@ -53,10 +60,13 @@ def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
                 a_ast = node_to_ast(a, g, var_def, ctxread=ctxread)
                 args_ast.append(a_ast)
 
-            ast_Call = ast.Call(args=args_ast, func=g.get(n, 'func'), keywords=[], lineno=0, col_offset=0)
-
-            return ast_Call
-
+            return ast.Call(
+                args=args_ast,
+                func=g.get(n, 'func'),
+                keywords=[],
+                lineno=0,
+                col_offset=0,
+            )
         elif na == ast.IfExp:
 
             body = g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.BODY)[1][0][0]
@@ -68,10 +78,13 @@ def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
             test = g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.TEST)[1][0][0]
             test_ast = node_to_ast(test, g, var_def, ctxread=ctxread)
 
-            ast_ifexp = ast.IfExp(body=body_ast, orelse=orelse_ast, test=test_ast, lineno=0, col_offset=0)
-
-            return ast_ifexp
-
+            return ast.IfExp(
+                body=body_ast,
+                orelse=orelse_ast,
+                test=test_ast,
+                lineno=0,
+                col_offset=0,
+            )
         elif na == ast.Compare:
             comp = [ii[0] for ii in g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.COMP)[1]]
             comp_ast = []
@@ -83,9 +96,13 @@ def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
 
             left_ast = node_to_ast(left, g, var_def, ctxread=ctxread)
 
-            ast_Comp = ast.Compare(left=left_ast, comparators=comp_ast, ops=g.get(n, 'ops'), lineno=0, col_offset=0)
-
-            return ast_Comp
+            return ast.Compare(
+                left=left_ast,
+                comparators=comp_ast,
+                ops=g.get(n, 'ops'),
+                lineno=0,
+                col_offset=0,
+            )
         elif na == ast.Subscript:
             val_node = g.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.SUBSCRIPT_VALUE)[1][0][0]
 
@@ -95,9 +112,13 @@ def node_to_ast(n: int, g: MappingsGraph, var_def, ctxread=False, read=True):
 
             slice_ast = node_to_ast(slice_node, g, var_def, ctxread=ctxread)
 
-            ast_subscript = ast.Subscript(value=val_ast, slice=slice_ast, ctx=g.get(n, 'ctx'), lineno=0, col_offset=0)
-            return ast_subscript
-
+            return ast.Subscript(
+                value=val_ast,
+                slice=slice_ast,
+                ctx=g.get(n, 'ctx'),
+                lineno=0,
+                col_offset=0,
+            )
         raise TypeError(f'Cannot convert {n},{na}')
     except:
         print(n)
@@ -114,19 +135,36 @@ def process_assign_node(target_nodes, g, var_def, value_ast, na, targets):
         for target_node in target_nodes:
             target_ast.append(node_to_ast(target_node[1], g, var_def, read=False))
             targets.append(target_node[1])
-        ast_assign = ast.Assign(targets=[ast.Tuple(elts=target_ast, lineno=0, col_offset=0, ctx=ast.Store())],
-                                value=value_ast, lineno=0, col_offset=0)
-        return ast_assign
+        return ast.Assign(
+            targets=[
+                ast.Tuple(
+                    elts=target_ast, lineno=0, col_offset=0, ctx=ast.Store()
+                )
+            ],
+            value=value_ast,
+            lineno=0,
+            col_offset=0,
+        )
     else:
         target_node = target_nodes[0][1]
         target_ast = node_to_ast(target_node, g, var_def, read=False)
         if value_ast and target_ast:
             if na == ast.Assign or target_node not in targets:
                 targets.append(target_node)
-                ast_assign = ast.Assign(targets=[target_ast], value=value_ast, lineno=0, col_offset=0)
+                return ast.Assign(
+                    targets=[target_ast],
+                    value=value_ast,
+                    lineno=0,
+                    col_offset=0,
+                )
             else:
-                ast_assign = ast.AugAssign(target=target_ast, value=value_ast, lineno=0, col_offset=0, op=ast.Add())
-            return ast_assign
+                return ast.AugAssign(
+                    target=target_ast,
+                    value=value_ast,
+                    lineno=0,
+                    col_offset=0,
+                    op=ast.Add(),
+                )
 
 
 def generate_return_statement(var_def_, g):
@@ -142,10 +180,7 @@ def generate_return_statement(var_def_, g):
 
 def function_from_graph_generic(g: MappingsGraph, var_def_, arg_metadata, replacements=None, replace_name=None):
     decorators = []
-    if replace_name is None:
-        fname = g.label
-    else:
-        fname = replace_name
+    fname = g.label if replace_name is None else replace_name
     body = function_body_from_graph(g, var_def_)
     var_def_.order_variables(arg_metadata)
     body.append(generate_return_statement(var_def_, g))
@@ -156,10 +191,11 @@ def function_from_graph_generic(g: MappingsGraph, var_def_, arg_metadata, replac
     func = wrap_function(fname, body, decorators=decorators, args=args)
     tree = replace_closure_function(func, replacements, get_eq_prefix())
     func_result = ast.parse(tree, mode='exec').body[0]
-    target_ids = []
-    for i, arg in enumerate(var_def_.args_order):
-        if arg in var_def_.targets:
-            target_ids.append(i)
+    target_ids = [
+        i
+        for i, arg in enumerate(var_def_.args_order)
+        if arg in var_def_.targets
+    ]
     return func_result, var_def_.args_order, target_ids
 
 
@@ -232,16 +268,38 @@ def compiled_function_from_graph_generic_llvm(g: Graph, var_def_, imports,
     if not compiled_function:
         return func, signature, r_args, r_targets
 
-    body = []
-    for (module, g.label) in imports.as_imports:
-        body.append(ast.Import(names=[ast.alias(name=module, asname=g.label)], lineno=0, col_offset=0, level=0))
-    for (module, g.label) in imports.from_imports:
-        body.append(
-            ast.ImportFrom(module=module, names=[ast.alias(name=g.label, asname=None)], lineno=0, col_offset=0,
-                           level=0))
-    body.append(func)
-    body.append(ast.Return(value=ast.Name(id=fname, ctx=ast.Load(), lineno=0, col_offset=0), lineno=0, col_offset=0))
-    wrapper_name = fname + '1'
+    body = [
+        ast.Import(
+            names=[ast.alias(name=module, asname=g.label)],
+            lineno=0,
+            col_offset=0,
+            level=0,
+        )
+        for module, g.label in imports.as_imports
+    ]
+    body.extend(
+        ast.ImportFrom(
+            module=module,
+            names=[ast.alias(name=g.label, asname=None)],
+            lineno=0,
+            col_offset=0,
+            level=0,
+        )
+        for module, g.label in imports.from_imports
+    )
+    body.extend(
+        (
+            func,
+            ast.Return(
+                value=ast.Name(
+                    id=fname, ctx=ast.Load(), lineno=0, col_offset=0
+                ),
+                lineno=0,
+                col_offset=0,
+            ),
+        )
+    )
+    wrapper_name = f'{fname}1'
 
     func = wrap_function(wrapper_name, body, decorators=[],
                          args=ast.arguments(posonlyargs=[], args=[], vararg=None, defaults=[],
@@ -259,16 +317,12 @@ def compiled_function_from_graph_generic_llvm(g: Graph, var_def_, imports,
 
 
 def function_from_graph_generic_llvm(g: Graph, var_def_, replace_name=None):
-    if replace_name is None:
-        fname = g.label + '_llvm'
-    else:
-        fname = replace_name + '_llvm'
-
+    fname = f'{g.label}_llvm' if replace_name is None else f'{replace_name}_llvm'
     body = function_body_from_graph(g, var_def_)
     var_def_.order_variables(g.arg_metadata)
     args = ast.arguments(posonlyargs=[], args=var_def_.get_order_args(), vararg=None, defaults=[],
                          kwonlyargs=[], kw_defaults=[], kwarg=None)
-    signature = [f'void(']
+    signature = ['void(']
     target_ids = []
     for i, arg in enumerate(var_def_.args_order):
         if arg in var_def_.targets:

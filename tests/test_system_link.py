@@ -21,7 +21,12 @@ class Root(Subsystem):
         super().__init__(tag)
         inlet_item = InitialValue(x0=1)
         for i in range(N_outer):
-            system = Level1(tag='linkersubsystem_' + str(i), inlet_item=inlet_item, N=N_inner, k=k)
+            system = Level1(
+                tag=f'linkersubsystem_{str(i)}',
+                inlet_item=inlet_item,
+                N=N_inner,
+                k=k,
+            )
             self.register_item(system)
             inlet_item = system.ports['outlet']  # Set next inlet item to outlet item from Level1 - this does not work
 
@@ -33,7 +38,7 @@ class Level1(Subsystem):
         items = []
 
         for i in range(N):
-            item = Base(tag='item_' + str(i), inlet=inlet_item, k=k)
+            item = Base(tag=f'item_{str(i)}', inlet=inlet_item, k=k)
             self.register_item(item)
             inlet_item = item  # This works
 

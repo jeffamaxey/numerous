@@ -34,11 +34,13 @@ class ConnectorItem(Item, Connector):
             for f_var in ns.variables:
                 if f_var.mapping:
                     b_fvar=f_var.mapping
-                    if isinstance(b_fvar, _BindingVariable):
-                        if b_fvar.namespace.binding.name == binding.name:
-                            bv = binded_item.registered_namespaces[ns.tag].get_variable(
-                                b_fvar.detailed_description.tag)
-                            f_var.mapping = bv
+                    if (
+                        isinstance(b_fvar, _BindingVariable)
+                        and b_fvar.namespace.binding.name == binding.name
+                    ):
+                        bv = binded_item.registered_namespaces[ns.tag].get_variable(
+                            b_fvar.detailed_description.tag)
+                        f_var.mapping = bv
 
     def bind(self, **kwargs):
         """
@@ -57,7 +59,7 @@ class ConnectorItem(Item, Connector):
                 self.bindings[key].add_binding(value)
                 self.__bind_mappings(self.bindings[key], value)
             else:
-                ValueError("Binding {} is not exist in item {}".format(key, self.tag))
+                ValueError(f"Binding {key} is not exist in item {self.tag}")
 
 
 class ConnectorTwoWay(ConnectorItem):

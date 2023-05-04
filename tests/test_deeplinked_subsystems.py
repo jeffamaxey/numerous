@@ -27,7 +27,12 @@ class Success1(Subsystem):
         self.inner_counter = 0
         for i in range(N_outer):
             self.outer_counter += 1
-            system = Level1(tag='linkersubsystem_deeplink_' + str(i + 1), inlet_item=inlet_item, N=N_inner, k=k)
+            system = Level1(
+                tag=f'linkersubsystem_deeplink_{str(i + 1)}',
+                inlet_item=inlet_item,
+                N=N_inner,
+                k=k,
+            )
             self.register_item(system)
             inlet_item = system.ports['outlet']  # Set next inlet item to outlet item from Level1 - this does not work
             # inlet_item = Link(tag='inlet_' +str(i+1), item=system.outlet)
@@ -42,9 +47,14 @@ class Success2(Subsystem):
         self.inner_counter = 0
         for i in range(N_outer):
             self.outer_counter += 1
-            system = Level1(tag='linkersubsystem_deeplink_' + str(i + 1), inlet_item=inlet_item, N=N_inner, k=k)
+            system = Level1(
+                tag=f'linkersubsystem_deeplink_{str(i + 1)}',
+                inlet_item=inlet_item,
+                N=N_inner,
+                k=k,
+            )
             self.register_item(system)
-            inlet_item = Modify1(tag='inlet_' + str(i + 1), item=system.ports['outlet'])
+            inlet_item = Modify1(tag=f'inlet_{str(i + 1)}', item=system.ports['outlet'])
             self.register_item(inlet_item)
 
 
@@ -82,7 +92,7 @@ class Level1(Subsystem):
         inlet_item_next = Modify2(tag='boundary_deeplink', item=inlet_item)
         self.register_item(inlet_item_next)
         for i in range(N):
-            item = Base(tag='item_' + str(i + 1), inlet=inlet_item_next, k=k)
+            item = Base(tag=f'item_{str(i + 1)}', inlet=inlet_item_next, k=k)
             self.register_item(item)
             inlet_item_next = item  # This works
 

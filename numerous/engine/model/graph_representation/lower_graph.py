@@ -23,9 +23,8 @@ def depth_first_search(node, path, children):
     for i in range(children_of_node[0]):
 
         c = children_of_node[i + 1]
-        if len(path) > 0:
-            if index(path, c) >= 0:
-                return c, np.append(path, c)
+        if len(path) > 0 and index(path, c) >= 0:
+            return c, np.append(path, c)
 
         path_ = np.append(path, c)
 
@@ -108,18 +107,16 @@ def walk_children(parent_edges, children_edges, self_edges, n, edges, ix, visite
 @njit('Tuple((i8, i8))(i8[:,:],i8,i8[:,:],i8,i8[:],i8,i8[:])', cache=False)
 def walk_parents_to_var_(self_edges, n, edges, ix, visited_edges, n_visited, node_types):
     for e in self_edges:
-        if index(visited_edges[:n_visited], e[2]) < 0:
+        if index(visited_edges[:n_visited], e[2]) < 0 and e[1] == n:
+            visited_edges[n_visited] = e[2]
+            n_visited += 1
 
-            if e[1] == n:
-                visited_edges[n_visited] = e[2]
-                n_visited += 1
+            edges[ix, :] = e
+            ix += 1
 
-                edges[ix, :] = e
-                ix += 1
-
-                if node_types[e[0]] < 2:
-                    ix, n_visited = walk_parents_to_var_(self_edges, e[0], edges, ix, visited_edges, n_visited,
-                                                         node_types)
+            if node_types[e[0]] < 2:
+                ix, n_visited = walk_parents_to_var_(self_edges, e[0], edges, ix, visited_edges, n_visited,
+                                                     node_types)
 
     return ix, n_visited
 
@@ -128,20 +125,17 @@ def walk_parents_to_var_(self_edges, n, edges, ix, visited_edges, n_visited, nod
 def walk_children_(self_edges, n, edges, ix, visited_edges, n_visited, node_types):
     for e in self_edges:
 
-        if index(visited_edges[:n_visited], e[2]) < 0:
+        if index(visited_edges[:n_visited], e[2]) < 0 and e[0] == n:
+            visited_edges[n_visited] = e[2]
+            n_visited += 1
 
-            if e[0] == n:
+            edges[ix, :] = e
+            ix += 1
+            ix, n_visited = walk_children_(self_edges, e[1], edges, ix, visited_edges, n_visited, node_types)
 
-                visited_edges[n_visited] = e[2]
-                n_visited += 1
-
-                edges[ix, :] = e
-                ix += 1
-                ix, n_visited = walk_children_(self_edges, e[1], edges, ix, visited_edges, n_visited, node_types)
-
-                if node_types[e[0]] < 2:
-                    ix, n_visited = walk_parents_to_var_(self_edges, e[0], edges, ix, visited_edges, n_visited,
-                                                         node_types)
+            if node_types[e[0]] < 2:
+                ix, n_visited = walk_parents_to_var_(self_edges, e[0], edges, ix, visited_edges, n_visited,
+                                                     node_types)
 
     return ix, n_visited
 

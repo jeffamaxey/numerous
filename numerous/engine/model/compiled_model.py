@@ -128,9 +128,10 @@ class CompiledModel:
         self.min_external_t = min_external_t
 
     def is_external_data_update_needed(self, t):
-        if self.is_external_data and (t > self.max_external_t or t < self.min_external_t):
-            return True
-        return False
+        return bool(
+            self.is_external_data
+            and (t > self.max_external_t or t < self.min_external_t)
+        )
 
     def get_states(self):
         return self.read_variables()[self.state_idx]
@@ -140,9 +141,7 @@ class CompiledModel:
             self.write_variables(states[i], self.state_idx[i])
 
     def is_store_required(self):
-        if self.historian_ix >= self.historian_max_size:
-            return True
-        return False
+        return self.historian_ix >= self.historian_max_size
 
     def historian_reinit(self):
         self.historian_data = np.empty(
@@ -166,5 +165,4 @@ class CompiledModel:
 
     def func(self, _t, y):
         self.global_vars[0] = _t
-        deriv = self.compiled_compute(y)
-        return deriv
+        return self.compiled_compute(y)

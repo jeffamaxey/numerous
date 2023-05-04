@@ -45,10 +45,8 @@ class G(Item):
 class S2N(Subsystem):
     def __init__(self, tag, n):
         super().__init__(tag)
-        items = []
         input = I('1', P=100, T=0, R=10)
-        for i in range(n):
-            items.append(T(str(i + 2), T=1, R=5))
+        items = [T(str(i + 2), T=1, R=5) for i in range(n)]
         ground = G(str(n + 2), TG=10, RG=2)
 
         input.t1.T_o.add_mapping(items[0].t1.T)
@@ -67,8 +65,7 @@ class S2N(Subsystem):
                 items[item].t1.T_o.add_mapping(items[item + 1].t1.T)
 
         r_items = [input]
-        for i in items:
-            r_items.append(i)
+        r_items.extend(iter(items))
         r_items.append(ground)
         self.register_items(r_items)
 
@@ -88,14 +85,12 @@ if not os.path.isfile(model_filename):
     # 4.
     print("model compilation time ", end - start)
 
-    s1 = Simulation(m1, t_start=0, t_stop=1000, num=100)
-    s1.solve()
-    print(list(m1.states_as_vector[::-1]))
 else:
     start = time.time()
     m1 = Model.from_file(model_filename)
     end = time.time()
     print("model from file  ", end - start)
-    s1 = Simulation(m1, t_start=0, t_stop=1000, num=100)
-    s1.solve()
-    print(list(m1.states_as_vector[::-1]))
+
+s1 = Simulation(m1, t_start=0, t_stop=1000, num=100)
+s1.solve()
+print(list(m1.states_as_vector[::-1]))

@@ -31,12 +31,10 @@ class AbsTestItem(Item, EquationBase):
         x_dot = 0
         y_dot = 0.001 * (scope.x - scope.y)
 
-        if scope.y < 0:
-            if scope.x <= scope.x_max:
-                x_dot = - scope.k * scope.y
-        if scope.y > 0:
-            if scope.x >= -scope.x_max:
-                x_dot = - scope.k * scope.y
+        if scope.y < 0 and scope.x <= scope.x_max:
+            x_dot = - scope.k * scope.y
+        if scope.y > 0 and scope.x >= -scope.x_max:
+            x_dot = - scope.k * scope.y
 
         scope.x_dot = x_dot
         scope.y_dot = y_dot
@@ -55,8 +53,7 @@ def model():
 
 @pytest.fixture
 def variables(model: model):
-    variables = model().get_variables()
-    return variables
+    return model().get_variables()
 
 
 @pytest.fixture
@@ -124,7 +121,7 @@ def test_store_historian(normal_solver: normal_solver, step_solver: step_solver)
         df_single = solver(solver=SolverType.NUMEROUS, method='RK45', historian=InMemoryHistorian(),
                            historian_max_size=2000)
 
-        results.update({name: [df_split, df_single]})
+        results[name] = [df_split, df_single]
 
         assert approx(df_split["abstestsys.abstest.t1.x"]) == df_single["abstestsys.abstest.t1.x"], \
             f"failed for {name}"

@@ -16,7 +16,7 @@ class Vardef:
         self.vars_inds_map = []
 
     def var_def(self, var, read=True):
-        if not var in self.vars_inds_map:
+        if var not in self.vars_inds_map:
             self.vars_inds_map.append(var)
         ix = self.vars_inds_map.index(var)
 

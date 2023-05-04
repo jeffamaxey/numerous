@@ -73,8 +73,8 @@ class VariableNamespaceBase:
             action on assign overload
                """
 
-        name = variable_description.tag
         if variable_description.update:
+            name = variable_description.tag
             self[name].model.write_variables(variable_description.initial_value, self[name].llvm_idx)
         else:
             variable = _VariableFactory._create_from_variable_desc(self, self.item, variable_description)
@@ -184,10 +184,7 @@ class SetNamespace(VariableNamespace):
             variable.set_var_ix = item_ix
 
     def get_flat_variables(self):
-        flat_variables = []
-        for set_of_variables in self.set_variables.values():
-            flat_variables.append(set_of_variables)
-        return  flat_variables
+        return list(self.set_variables.values())
 
 
 class _BindingVariable(Variable):

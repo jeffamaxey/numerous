@@ -96,8 +96,10 @@ class Connector(Node):
         return Binding(binding_name)
 
     def __setattr__(self, key, value):
-        if key in self.__dict__:
-            if isinstance(self.__dict__[key], Binding):
-                if isinstance(value, Node):
-                    self.__dict__[key].add_binding(value)
+        if (
+            key in self.__dict__
+            and isinstance(self.__dict__[key], Binding)
+            and isinstance(value, Node)
+        ):
+            self.__dict__[key].add_binding(value)
         object.__setattr__(self, key, value)

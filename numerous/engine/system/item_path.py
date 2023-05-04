@@ -13,10 +13,7 @@ class ItemPath:
     def __init__(self, path, delimiter="."):
         self.path = path
         self.delimiter = delimiter
-        if path:
-            self.path_parsed = path.split(delimiter)
-        else:
-            self.path_parsed = None
+        self.path_parsed = path.split(delimiter) if path else None
 
     def get_top_item(self):
         """
@@ -34,8 +31,7 @@ class ItemPath:
         item_path : 'ItemPath'
                 path to a nested items from the  item.
         """
-        next_part = self.path_parsed[1:]
-        if next_part:
+        if next_part := self.path_parsed[1:]:
             return ItemPath(self.delimiter.join(next_part))
 
     def __str__(self):

@@ -6,11 +6,13 @@ class Historian:
         self.timesteps_reserved_per_event = timesteps_reserved_per_event
 
     def get_historian_max_size(self, number_of_timesteps, events_count):
-        if not self.max_size:
-            ## +1 here since we are using <= to compare inside compiled model
-            return number_of_timesteps + events_count * self.timesteps_reserved_per_event + 1
-        else:
-            return self.max_size
+        return (
+            self.max_size
+            if self.max_size
+            else number_of_timesteps
+            + events_count * self.timesteps_reserved_per_event
+            + 1
+        )
 
     def store(self, df):
         pass

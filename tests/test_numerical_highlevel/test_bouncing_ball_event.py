@@ -18,8 +18,7 @@ def analytical_solution(N_hits, g=9.81, f=0.05, x0=1):
         summation += (2 * (1 - f) ** (i))
         t_hit = np.sqrt(2 * x0 / g) * (summation - 1)
         t_hits.append(t_hit)
-    t_hits = np.array(t_hits)
-    return t_hits
+    return np.array(t_hits)
 
 
 t_hits = analytical_solution(N_hits=10)
@@ -91,7 +90,7 @@ def test_bouncing_ball(use_llvm):
     asign = np.sign(np.array(m1.historian_df['S1.ball.t1.v']))
     signchange = ((np.roll(asign, 1) - asign) != 0).astype(int)
     args = np.argwhere(signchange > 0)[2:].flatten()
-    assert approx(m1.historian_df['time'][args[0::2][:5]], rel=0.01) == t_hits[:5]
+    assert approx(m1.historian_df['time'][args[::2][:5]], rel=0.01) == t_hits[:5]
 
 
 @pytest.mark.parametrize("use_llvm", [True, False])
@@ -107,7 +106,7 @@ def test_with_full_condition(use_llvm):
     asign = np.sign(np.array(m1.historian_df['S1.ball.t1.v']))
     signchange = ((np.roll(asign, 1) - asign) != 0).astype(int)
     args = np.argwhere(signchange > 0)[2:].flatten()
-    assert approx(m1.historian_df['time'][args[0::2][:5]], rel=0.01) == t_hits[:5]
+    assert approx(m1.historian_df['time'][args[::2][:5]], rel=0.01) == t_hits[:5]
 
 
 @pytest.mark.parametrize("use_llvm", [True, False])

@@ -77,7 +77,7 @@ class MappingsGraph(Graph):
             target_edges = target_edges_edge_type_target + target_edges_edge_type_mapping
             for edge, edge_ix in zip(target_edges, target_edges_indcs):
 
-                if not target in self.vars_assignments:
+                if target not in self.vars_assignments:
                     self.vars_assignments[target] = []
                     self.vars_assignments_mappings[target] = []
 
@@ -111,19 +111,22 @@ class MappingsGraph(Graph):
                     fake_sv = {}
                     svf = None
                     if isinstance(sv, SetOfVariables):
-                        tmp_var_counter = 0
                         tsv = TemporarySetVar(tmp_key, sv)
-                        for svi in sv.variables.values():
-                            tmp_var_counter += 1
-                            svf = TemporaryVar('tmp_var_' + str(tmp_var_counter), svi,
-                                               svi.tag + '_' + str(sv.id), svi.set_var, svi.set_var_ix)
+                        for tmp_var_counter, svi in enumerate(sv.variables.values(), start=1):
+                            svf = TemporaryVar(
+                                f'tmp_var_{tmp_var_counter}',
+                                svi,
+                                f'{svi.tag}_{str(sv.id)}',
+                                svi.set_var,
+                                svi.set_var_ix,
+                            )
                             tsv.tmp_vars.append(svf)
                         fake_sv[tsv.id] = tsv
                     else:
                         svf = TemporaryVar(d_u(tmp_key), sv, tmp_key, None, None)
                         fake_sv[d_u(svf.get_path_dot())] = svf
 
-                    temp_variables.update(fake_sv)
+                    temp_variables |= fake_sv
 
                     tmp = self.add_node(Node(key=tmp_key, node_type=NodeTypes.TMP, name=tmp_key,
                                              file='sum', label=tmp_label, ln=0, scope_var=svf), ignore_existing=False)

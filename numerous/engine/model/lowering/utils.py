@@ -36,8 +36,7 @@ def generate_code_file(mod_body, file, imports, external_functions_source=False,
 
     mod = wrap_module(mod_body)
     logging.info('Generating Source')
-    source = names + ast.unparse(mod)
-    return source
+    return names + ast.unparse(mod)
 
 
 # Define helper functions to check the variables and sub lists
@@ -56,13 +55,13 @@ def contains_dot(str_list):
 
 def are_all_scalars(str_list, scalar_variables):
     for s in str_list:
-        if not s in scalar_variables:
+        if s not in scalar_variables:
             raise ValueError(f'Not a scalar: {s}')
 
 
 def are_all_set_variables(str_list, set_variables):
     for s in str_list:
-        if not s in set_variables:
+        if s not in set_variables:
             raise ValueError(f'Not a set variable: {s}')
 
 
@@ -76,17 +75,11 @@ class Vardef:
         self.trgs_order = []
 
     def format(self, var, read=True):
-        if read:
-            _ctx = ast.Load()
-        else:
-            _ctx = ast.Store()
+        _ctx = ast.Load() if read else ast.Store()
         return ast.Name(id=var.replace('scope.', 's_'), lineno=0, col_offset=0, ctx=_ctx)
 
     def format_target(self, var, read):
-        if read:
-            _ctx = ast.Load()
-        else:
-            _ctx = ast.Store()
+        _ctx = ast.Load() if read else ast.Store()
         if self.llvm:
             return ast.Subscript(
                 slice=ast.Index(value=ast.Constant(value=0, lineno=0, col_offset=0), lineno=0, col_offset=0),
@@ -102,17 +95,17 @@ class Vardef:
     def order_variables(self, order_data):
         for (var, var_id, used) in order_data:
             if used:
-                self.args_order.append("scope." + var)
+                self.args_order.append(f"scope.{var}")
             else:
                 self.args_order.append(var_id)
 
         for (var, var_id, used) in order_data:
-            tmp_v = "scope." + var
+            tmp_v = f"scope.{var}"
             if tmp_v in self.targets:
                 self.trgs_order.append(tmp_v)
 
     def var_def(self, var, ctxread, read=True):
-        if not var in self.vars_inds_map:
+        if var not in self.vars_inds_map:
             self.vars_inds_map.append(var)
         if read and 'scope.' in var:
             if var not in self.targets and var not in self.args:
@@ -132,25 +125,13 @@ class Vardef:
             result = [self.format(a, False) for a in self.args_order]
         else:
             result = self.args
-        result_2 = []
-        for name in result:
-            result_2.append(ast.arg(arg=name.id, lineno=0, col_offset=0))
-        return result_2
+        return [ast.arg(arg=name.id, lineno=0, col_offset=0) for name in result]
 
     def get_order_trgs(self, form=True):
-        if form:
-            return [self.format(a, False) for a in self.trgs_order]
-        else:
-            return self.args
+        return [self.format(a, False) for a in self.trgs_order] if form else self.args
 
     def get_args(self, form=True):
-        if form:
-            return [self.format(a, False) for a in self.args]
-        else:
-            return self.args
+        return [self.format(a, False) for a in self.args] if form else self.args
 
     def get_targets(self, form=True):
-        if form:
-            return [self.format(a, False) for a in self.targets]
-        else:
-            return self.targets
+        return [self.format(a, False) for a in self.targets] if form else self.targets

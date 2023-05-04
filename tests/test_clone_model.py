@@ -33,10 +33,8 @@ class G(Item):
 class S2N(Subsystem):
     def __init__(self, tag, n):
         super().__init__(tag)
-        items = []
         input = TestItem('1', P=100, T=0, R=10)
-        for i in range(n):
-            items.append(T(str(i + 2), T=1, R=5))
+        items = [T(str(i + 2), T=1, R=5) for i in range(n)]
         ground = G(str(n + 2), TG=10, RG=2)
 
         input.t1.T_o.add_mapping(items[0].t1.T)
@@ -55,8 +53,7 @@ class S2N(Subsystem):
                 items[item].t1.T_o.add_mapping(items[item + 1].t1.T)
 
         r_items = [input]
-        for i in items:
-            r_items.append(i)
+        r_items.extend(iter(items))
         r_items.append(ground)
         self.register_items(r_items)
 

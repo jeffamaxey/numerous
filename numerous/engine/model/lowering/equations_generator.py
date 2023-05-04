@@ -30,7 +30,7 @@ class EquationGenerator:
         self.llvm_names = {}
         self.deriv = []
 
-        for ix, (sv_id, sv) in enumerate(self.scope_variables.items()):
+        for sv_id, sv in self.scope_variables.items():
             full_tag = d_u(sv.id)
             if sv.type == VariableType.STATE:
                 self.states.append(full_tag)
@@ -39,25 +39,25 @@ class EquationGenerator:
 
         for k, var in temporary_variables.items():
             if var.type == VariableType.TMP_PARAMETER_SET:
-                self.set_variables.update({k: var})
+                self.set_variables[k] = var
                 new_sv = {}
                 tail = {}
                 for k, v in self.scope_variables.items():
                     if k in var.set_var.variables:
-                        tail.update({k: v})
-                        new_sv.update({var.tmp_vars[v.set_var_ix].id: var.tmp_vars[v.set_var_ix]})
+                        tail[k] = v
+                        new_sv[var.tmp_vars[v.set_var_ix].id] = var.tmp_vars[v.set_var_ix]
                     else:
-                        new_sv.update({k: v})
+                        new_sv[k] = v
                 self.scope_variables = dict(new_sv, **tail)
             if var.type == VariableType.TMP_PARAMETER:
                 new_sv = {}
                 tail = {}
                 for k, v in self.scope_variables.items():
                     if k == var.scope_var_id:
-                        tail.update({k: v})
-                        new_sv.update({var.id: var})
+                        tail[k] = v
+                        new_sv[var.id] = var
                     else:
-                        new_sv.update({k: v})
+                        new_sv[k] = v
                 self.scope_variables = dict(new_sv, **tail)
 
         self.scoped_equations = scoped_equations
@@ -92,13 +92,7 @@ class EquationGenerator:
         # Create a kernel of assignments and calls
 
         self.eq_vardefs = {}
-        # Loop over equation functions and generate code for each equation.
-
-        used_eq = {}
-
-        for eq_key, eq in equations.items():
-            if eq_key in eq_used:
-                used_eq[eq_key]=eq
+        used_eq = {eq_key: eq for eq_key, eq in equations.items() if eq_key in eq_used}
         self._parse_equations(used_eq)
 
         self.all_targeted = []
@@ -113,7 +107,7 @@ class EquationGenerator:
 
         # If a scope_variable is part of a set it should be referenced alone
         if sv.set_var:
-            if not sv.set_var.id in self.set_variables:
+            if sv.set_var.id not in self.set_variables:
                 self.set_variables[sv.set_var.id] = sv.set_var
         else:
             self.scalar_variables[full_tag] = sv
@@ -123,17 +117,15 @@ class EquationGenerator:
             full_tag = d_u(sv.id)
             self.values_order[full_tag] = ix
             self._parse_variable(full_tag, sv, sv_id)
-        for ix, (sv_id, sv) in enumerate(self.temporary_variables.items()):
+        for sv_id, sv in self.temporary_variables.items():
             full_tag = d_u(sv.id)
             self._parse_variable(full_tag, sv, sv_id)
 
     def get_external_function_name(self, ext_func):
-        if self.llvm:
-            return self._llvm_func_name(ext_func)
-        return ext_func
+        return self._llvm_func_name(ext_func) if self.llvm else ext_func
 
     def _llvm_func_name(self, ext_func):
-        return self.llvm_names[ext_func + '_llvm1.<locals>.' + ext_func + '_llvm']
+        return self.llvm_names[f'{ext_func}_llvm1.<locals>.{ext_func}_llvm']
 
     def _parse_equations(self, equations):
         logging.info('Making equations for compilation')
@@ -188,28 +180,43 @@ class EquationGenerator:
         a_indcs, a_edges = list(
             self.equation_graph.get_edges_for_node_filter(end_node=n, attr='e_type', val=EdgeType.ARGUMENT))
         # Determine the local arguments names
-        args_local = [self.equation_graph.key_map[ae[0]] for i, ae in zip(a_indcs, a_edges) if
-                      not self.equation_graph.edges_c[i].arg_local == 'local']
+        args_local = [
+            self.equation_graph.key_map[ae[0]]
+            for i, ae in zip(a_indcs, a_edges)
+            if self.equation_graph.edges_c[i].arg_local != 'local'
+        ]
 
         # Determine the local arguments names
-        args_scope_var = [self.equation_graph.edges_c[i].arg_local for i, ae in zip(a_indcs, a_edges) if
-                          not self.equation_graph.edges_c[i].arg_local == 'local']
+        args_scope_var = [
+            self.equation_graph.edges_c[i].arg_local
+            for i, ae in zip(a_indcs, a_edges)
+            if self.equation_graph.edges_c[i].arg_local != 'local'
+        ]
 
         # Find the targets by looking for target edges
         t_indcs, t_edges = list(
             self.equation_graph.get_edges_for_node_filter(start_node=n, attr='e_type', val=EdgeType.TARGET))
-        targets_local = [self.equation_graph.key_map[te[1]] for i, te in zip(t_indcs, t_edges) if
-                         not self.equation_graph.edges_c[i].arg_local == 'local']
-        targets_scope_var = [self.equation_graph.edges_c[i].arg_local for i, ae in zip(t_indcs, t_edges)
-                             if
-                             not self.equation_graph.edges_c[i].arg_local == 'local']
+        targets_local = [
+            self.equation_graph.key_map[te[1]]
+            for i, te in zip(t_indcs, t_edges)
+            if self.equation_graph.edges_c[i].arg_local != 'local'
+        ]
+        targets_scope_var = [
+            self.equation_graph.edges_c[i].arg_local
+            for i, ae in zip(t_indcs, t_edges)
+            if self.equation_graph.edges_c[i].arg_local != 'local'
+        ]
         set_size = 0
         # Record targeted and read variables
         if self.equation_graph.get(n, 'vectorized'):
 
             # Map of scope.?? vars and set variable names
-            scope_vars = {'scope.' + self.set_variables[k].tag: v for k, v in
-                          zip(args_scope_var + targets_scope_var, args_local + targets_local)}
+            scope_vars = {
+                f'scope.{self.set_variables[k].tag}': v
+                for k, v in zip(
+                    args_scope_var + targets_scope_var, args_local + targets_local
+                )
+            }
 
             # Put the information of args and targets in the scope_var attr of the graph node for those equation
             self.equation_graph.nodes[n].scope_var = {'args': [scope_vars[a] for a in vardef.args],
@@ -224,8 +231,12 @@ class EquationGenerator:
                 self.all_read_set_vars.append(scope_vars[a])
         else:
             # Map of scope.?? vars and global-scope variable names
-            scope_vars = {'scope.' + self.scope_variables[k].tag: v for k, v in
-                          zip(args_scope_var + targets_scope_var, args_local + targets_local)}
+            scope_vars = {
+                f'scope.{self.scope_variables[k].tag}': v
+                for k, v in zip(
+                    args_scope_var + targets_scope_var, args_local + targets_local
+                )
+            }
 
             # Put the information of args and targets in the scope_var attr of the graph node for those equation
             self.equation_graph.nodes[n].scope_var = {'args': [scope_vars[a] for a in vardef.args],
@@ -244,10 +255,8 @@ class EquationGenerator:
 
             llvm_args = []
             for t in vardef.args_order:
-                llvm_args_ = []
                 set_var = self.set_variables[scope_vars[t]]
-                for i in range(set_var.get_size()):
-                    llvm_args_.append(set_var.get_var_by_idx(i).id)
+                llvm_args_ = [set_var.get_var_by_idx(i).id for i in range(set_var.get_size())]
                 llvm_args.append(llvm_args_)
             ##reshape to correct format
             llvm_args = [list(x) for x in zip(*llvm_args)]
@@ -287,25 +296,25 @@ class EquationGenerator:
 
             # make a list of assignments to each index in t
             for v_ix, v in zip(v_indcs, value_edges):
-                if (nt := self.equation_graph.get(v[0], 'node_type')) == NodeTypes.VAR or nt == NodeTypes.TMP:
+                if (
+                    nt := self.equation_graph.get(v[0], 'node_type')
+                ) != NodeTypes.VAR and nt != NodeTypes.TMP:
+                    raise ValueError(f'this must be a mistake {self.equation_graph.key_map[v[0]]}')
 
-                    if (mix := self.equation_graph.edges_c[v_ix].mappings) == ':':
-                        mappings[':'].append(self.equation_graph.key_map[v[0]])
+                if (mix := self.equation_graph.edges_c[v_ix].mappings) == ':':
+                    mappings[':'].append(self.equation_graph.key_map[v[0]])
 
-                    elif isinstance(mix, list):
-                        sums = {}
-                        for m in mix:
-                            if not m[1] in sums:
-                                sums[m[1]] = []
-                            sums[m[1]].append(m[0])
-                        mappings['ix'].append((self.equation_graph.key_map[v[0]], sums))
-
-                    else:
-                        raise ValueError(
-                            f'mapping indices not specified!{self.equation_graph.edges_c[v_ix].mappings}, {self.equation_graph.key_map[t]} <- {self.equation_graph.key_map[v[0]]}')
+                elif isinstance(mix, list):
+                    sums = {}
+                    for m in mix:
+                        if m[1] not in sums:
+                            sums[m[1]] = []
+                        sums[m[1]].append(m[0])
+                    mappings['ix'].append((self.equation_graph.key_map[v[0]], sums))
 
                 else:
-                    raise ValueError(f'this must be a mistake {self.equation_graph.key_map[v[0]]}')
+                    raise ValueError(
+                        f'mapping indices not specified!{self.equation_graph.edges_c[v_ix].mappings}, {self.equation_graph.key_map[t]} <- {self.equation_graph.key_map[v[0]]}')
 
             mappings_ast_pairs = [
                                      []] * l_mapping  # To be list of tuples of var and target for each indix in target
@@ -339,11 +348,10 @@ class EquationGenerator:
                     for el in v:
                         if m_ix[0] in self.set_variables:
                             mappings_llvm[target_var_name].append(self.set_variables[m_ix[0]].get_var_by_idx(el).id)
+                        elif m_ix[0] in self.scope_variables:
+                            mappings_llvm[target_var_name].append(self.scope_variables[m_ix[0]].id)
                         else:
-                            if m_ix[0] in self.scope_variables:
-                                mappings_llvm[target_var_name].append(self.scope_variables[m_ix[0]].id)
-                            else:
-                                raise ValueError(f'Variable  {m_ix[0]} mapping not found')
+                            raise ValueError(f'Variable  {m_ix[0]} mapping not found')
             for k, v in mappings_llvm.items():
                 self.generated_program.add_mapping(v, [k])
         else:
@@ -354,10 +362,16 @@ class EquationGenerator:
 
                 self.all_targeted.append(self.equation_graph.key_map[t])
 
-            target_indcs_map = [[] for i in
-                                range(len(
-                                    self.set_variables[self.equation_graph.key_map[t]]))] if is_set_var else [
-                []]
+            target_indcs_map = (
+                [
+                    []
+                    for _ in range(
+                        len(self.set_variables[self.equation_graph.key_map[t]])
+                    )
+                ]
+                if is_set_var
+                else [[]]
+            )
 
             for v, vi in zip(value_edges, v_indcs):
                 if self.equation_graph.get(v[0], 'is_set_var'):
@@ -390,14 +404,13 @@ class EquationGenerator:
                             mapping_dict[target_var].append(var_name)
                         else:
                             mapping_dict[target_var] = [var_name]
-                    else:
-                        if var_name in self.set_variables:
-                            if var_name in mapping_dict:
-                                mapping_dict[target_var].append(self.set_variables[var_name].get_var_by_idx(v[1]).id)
-                            else:
-                                mapping_dict[target_var] = [self.set_variables[var_name].get_var_by_idx(v[1]).id]
+                    elif var_name in self.set_variables:
+                        if var_name in mapping_dict:
+                            mapping_dict[target_var].append(self.set_variables[var_name].get_var_by_idx(v[1]).id)
                         else:
-                            raise ValueError(f'Variable  {var_name} mapping not found')
+                            mapping_dict[target_var] = [self.set_variables[var_name].get_var_by_idx(v[1]).id]
+                    else:
+                        raise ValueError(f'Variable  {var_name} mapping not found')
             for k, v in mapping_dict.items():
                 self.generated_program.add_mapping(v, [k])
 

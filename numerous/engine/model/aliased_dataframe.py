@@ -16,26 +16,24 @@ class AliasedDataFrame:
         self.df = pd.DataFrame(data)
 
     def __getitem__(self, names: str | Sequence[str]):
-        if self.rename_columns:
-            if isinstance(names, str):
-                return self.df[self.aliases[names] if names in self.aliases else names]
-            if isinstance(names, Sequence):
-                df = self.df[[self.aliases[name] if name in self.aliases else name for name in names]]
-                df.columns = list(names)
-                return df
-        else:
+        if not self.rename_columns:
             return self.df[names]
+        if isinstance(names, str):
+            return self.df[self.aliases[names] if names in self.aliases else names]
+        if isinstance(names, Sequence):
+            df = self.df[[self.aliases[name] if name in self.aliases else name for name in names]]
+            df.columns = list(names)
+            return df
 
     @property
     def index(self):
         return self.df.index
 
     def get(self, names: str | Sequence[str]):
-        if self.rename_columns:
-            if isinstance(names, str):
-                return self.df.get(self.aliases[names] if names in self.aliases else names)
-            if isinstance(names, Sequence):
-                df = self.df.get([self.aliases[name] if name in self.aliases else name for name in names])
-                return df
-        else:
+        if not self.rename_columns:
             return self.df.get(names)
+        if isinstance(names, str):
+            return self.df.get(self.aliases[names] if names in self.aliases else names)
+        if isinstance(names, Sequence):
+            df = self.df.get([self.aliases[name] if name in self.aliases else name for name in names])
+            return df

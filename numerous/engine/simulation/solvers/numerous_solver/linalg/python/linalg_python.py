@@ -10,10 +10,10 @@ def forward_substitution_old(L, b):
     y[0] = b[0] / L[0, 0]
     for i in range(1, len(b)):
         v1 = L[i, 0:i]
-        v2 = y[0:i]
+        v2 = y[:i]
         prod = v1 @ v2
         y[i] = (b[i] - prod) / L[i, i]
-        #y[i] = (b[i] - np.dot(v1,v2)) / L[i, i]
+            #y[i] = (b[i] - np.dot(v1,v2)) / L[i, i]
     return y
 
 #@profile
@@ -70,38 +70,30 @@ def solve_cholesky(a, b):
     #y = linalg.solve_triangular(L, b, lower=True)
     #x = linalg.solve_triangular(L.T, y, lower=False)
     y=forward_substitution(L, b)
-    x=backward_substitution(np.ascontiguousarray(L.T), y)
-    return x
+    return backward_substitution(np.ascontiguousarray(L.T), y)
 
 
 #@profile
 @njit
 def solve_triangular(L, b):
     y = forward_substitution(L, b)
-    x = backward_substitution_old(np.ascontiguousarray(L.T), y)
-    #y = linalg.solve_triangular(L,b, lower=True)
-    #x = linalg.solve_triangular(L.T, y, lower=False)
-
-    return x
+    return backward_substitution_old(np.ascontiguousarray(L.T), y)
 
 @njit
 def solve_qr(Q, R, b):
     bh = Q.T @ b
-    x = backward_substitution_old(R, bh)
-    return x
+    return backward_substitution_old(R, bh)
 
 @njit
 def solve_LU(L, U, b):
     y = forward_substitution(L, b)
-    x = backward_substitution_old(U, y)
-    return x
+    return backward_substitution_old(U, y)
 
 
 def solve_qr_tot(A, b):
     Q, R = np.linalg.qr(A)
     bh = Q.T @ b
-    x = backward_substitution(R, bh)
-    return x
+    return backward_substitution(R, bh)
 
 def timeit(_func, *args):
     start=time.time()

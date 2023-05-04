@@ -132,7 +132,7 @@ class Subsystem(ConnectorItem):
                 if len(tail) == 1:
                     var.path.extend_path(self.id, tail[0].id, tail[0].tag)
                 if len(tail) > 1:
-                    t1 = tail[0::2][0]
+                    t1 = tail[::2][0]
                     t2 = tail[1::2][0]
                     var.path.extend_path(t2.id, t1.id, t1.tag)
         if isinstance(item, Subsystem):
@@ -148,7 +148,9 @@ class Subsystem(ConnectorItem):
             Item to register in the subsystem.
         """
         if item.tag in [x.tag for x in self.registered_items.values()]:
-            raise ValueError('Item with tag {} is already registered in system {}'.format(item.tag, self.tag))
+            raise ValueError(
+                f'Item with tag {item.tag} is already registered in system {self.tag}'
+            )
         item._increase_level()
         self.update_variables_path(item)
         self.registered_items.update({item.id: item})
@@ -166,9 +168,8 @@ class Subsystem(ConnectorItem):
             return True
 
         for item in self.registered_items.values():
-            if isinstance(item, Subsystem):
-                if item.find_variable(varname):
-                    return True
+            if isinstance(item, Subsystem) and item.find_variable(varname):
+                return True
             if self._find_variable(item, varname):
                 return True
         return False
@@ -200,7 +201,7 @@ class ItemSet(Subsystem, EquationBase):
 
     def __init__(self, set_structure, tag):
 
-        tag = "SET_" + tag
+        tag = f"SET_{tag}"
         super().__init__(tag)
         self.items = []
         set_structure_flat = set_structure
@@ -231,7 +232,7 @@ class ItemSet(Subsystem, EquationBase):
         for item in set_structure_flat:
             for ns in item.registered_namespaces:
                 tag_ = ns.tag
-                if not (tag_ in self.registered_namespaces.keys()):
+                if tag_ not in self.registered_namespaces.keys():
                     sns = SetNamespace(self, tag_, self.item_ids)
                     sns.add_equations(list(ns.associated_equations.values()), False, create_variables=False,
                                       set_equation=True)

@@ -34,16 +34,8 @@ def bilinear_interpolation(ix, x, y, data_def, data):
     if (y_start_ix) < ds_ix:
         error_code = 3
 
-    if x_max == x_min:
-        x_norm = x
-    else:
-        x_norm = (x - x_min) / (x_max - x_min)
-
-    if y_max == y_min:
-        y_norm = y
-    else:
-        y_norm = (y - y_min) / (y_max - y_min)
-
+    x_norm = x if x_max == x_min else (x - x_min) / (x_max - x_min)
+    y_norm = y if y_max == y_min else (y - y_min) / (y_max - y_min)
     x_frac_ix = x_norm * (x_len - 1)
 
     x1_ix = np.int64(np.floor(x_frac_ix))
@@ -107,10 +99,7 @@ def bilinear_interpolation(ix, x, y, data_def, data):
         else:
             z = (q11 * (y2 - y) + q12 * (y - y1)) / (y2 - y1)
     elif y == y1 or y == y2 or y1 == y2:
-        if x == x1 or x == x2 or x1 == x2:
-            return q11
-        else:
-            z = (q11 * (x2 - x) + q21 * (x - x1)) / (x2 - x1)
+        z = (q11 * (x2 - x) + q21 * (x - x1)) / (x2 - x1)
     else:
         z = (q11 * (x2 - x) * (y2 - y) +
              q21 * (x - x1) * (y2 - y) +

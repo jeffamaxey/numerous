@@ -96,15 +96,14 @@ class Item(Node):
         ValueError
             If namespace is already registered for this item.
         """
-        if not namespace.registered:
-            if namespace.tag in self.registered_namespaces.keys():
-                raise ValueError('Namespace with name {0} is already registered in item {1}'
-                                 .format(namespace.tag, self.tag))
-            else:
-                self.registered_namespaces.update({namespace.tag: namespace})
-            namespace.registered = True
-        else:
+        if namespace.registered:
             raise ValueError(f'Cannot register namespace {namespace.tag} more than once!')
+        if namespace.tag in self.registered_namespaces.keys():
+            raise ValueError('Namespace with name {0} is already registered in item {1}'
+                             .format(namespace.tag, self.tag))
+        else:
+            self.registered_namespaces.update({namespace.tag: namespace})
+        namespace.registered = True
 
     def get_variables(self):
         """
@@ -118,8 +117,7 @@ class Item(Node):
         """
         variables_result = []
         for vn in self.registered_namespaces.values():
-            for variable in vn.variables:
-                variables_result.append((variable, vn))
+            variables_result.extend((variable, vn) for variable in vn.variables)
         return variables_result
 
     def add_event(self, key, condition, action, compiled_functions=None, terminal=True, direction=-1, compiled=False):

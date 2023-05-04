@@ -19,13 +19,9 @@ class RK45(BaseMethod):
         profile = numerous_solver.numba_compiled_solver
 
         def comp(fun):
-            if profile:
-                return njit(fun)
-            else:
-                # return options['lp'](fun)
-                return fun
+            return njit(fun) if profile else fun
 
-        if submethod == None:
+        if submethod is None:
             submethod = 'RKDP45'
 
         if submethod == 'RKF45':
@@ -89,7 +85,7 @@ class RK45(BaseMethod):
             a[5:] = [9017/3168, -355/33, 46732/5247, 49/176, -5103/18656, 0]
 
             b = np.zeros((2,7))
-            b[0:] = [35/384, 0, 500/1113, 125/192, -2187/6784, 11/84, 0]
+            b[:] = [35/384, 0, 500/1113, 125/192, -2187/6784, 11/84, 0]
             b[1:] = [5179/57600, 0, 7571/16695, 393/640, -92097/339200, 187/2100, 1/40]
             self.e_order = 4
             self.order = 5
@@ -138,11 +134,11 @@ class RK45(BaseMethod):
                 dy = np.dot(k[:i].T, a[i,:i])
                 k[i,:] = dt*nm.func(t+c[i]*dt, y+dy)
 
-            ynew = y + np.dot(k[0:order+2].T, b[0,:])
+            ynew = y + np.dot(k[:order+2].T, b[0,:])
             fnew = nm.func(tnew, ynew)  # can possibly save one call here...
             k[-1, :] = dt*fnew
 
-            ye = y + np.dot(k[0:order+2].T, b[1,:])
+            ye = y + np.dot(k[:order+2].T, b[1,:])
             scale = atol + np.maximum(np.abs(y), np.abs(ynew)) * rtol
 
             e = (ynew-ye)
@@ -213,12 +209,7 @@ class LevenbergMarquardt(BaseMethod):
 
 
         def comp(fun):
-            if profile:
-                return njit(fun)
-            else:
-                # return options['lp'](fun)
-                return fun
-
+            return njit(fun) if profile else fun
 
         @comp
         def calc_residual(r):
@@ -247,7 +238,7 @@ class LevenbergMarquardt(BaseMethod):
             for i in range(len(y)):
                 col_m = max(0, i - s)
                 col_p = min(num_eq_vars - 1, i + s)
-                idx = [k for k in range(col_m, col_p + 1)]
+                idx = list(range(col_m, col_p + 1))
 
                 for j in idx:
                     y_perm[j] += h
@@ -384,7 +375,7 @@ class LevenbergMarquardt(BaseMethod):
                     update_L = False
 
                 converged, S, ynew, d, r, lnew, inner_stat, f = \
-                    levenberg_marquardt_inner(nm, t, dt, y, yold, jacT, L, order)
+                        levenberg_marquardt_inner(nm, t, dt, y, yold, jacT, L, order)
 
                 if not converged:
                     if not updated:
@@ -404,11 +395,7 @@ class LevenbergMarquardt(BaseMethod):
             _solve_state = (J, jacT, update_jacobian, last_f, L, updated, update_L, jac_updates, longer, shorter)
             t += dt
             # print(t)
-            if not converged:
-                factor = shorter
-            else:
-                factor = longer
-
+            factor = longer if converged else shorter
             return t, ynew, converged, update_jacobian, _solve_state, factor
 
         if profile:
@@ -421,19 +408,18 @@ class LevenbergMarquardt(BaseMethod):
 
     def get_solver_state(self, n):
 
-        state = (np.ascontiguousarray(np.zeros((n, n))),
-                 np.ascontiguousarray(np.zeros((n, n))),
-                 True,
-                 np.ascontiguousarray(np.zeros(n)),
-                 np.ascontiguousarray(np.zeros((n, n))),
-                 False,
-                 True,
-                 0,
-                 self.longer,
-                 self.shorter,
-                 )
-
-        return state
+        return (
+            np.ascontiguousarray(np.zeros((n, n))),
+            np.ascontiguousarray(np.zeros((n, n))),
+            True,
+            np.ascontiguousarray(np.zeros(n)),
+            np.ascontiguousarray(np.zeros((n, n))),
+            False,
+            True,
+            0,
+            self.longer,
+            self.shorter,
+        )
 
 
 class Euler(BaseMethod):
@@ -447,11 +433,7 @@ class Euler(BaseMethod):
         profile = numerous_solver.numba_compiled_solver
 
         def comp(fun):
-            if profile:
-                return njit(fun)
-            else:
-                # return options['lp'](fun)
-                return fun
+            return njit(fun) if profile else fun
 
         @comp
         def euler(nm, t, dt, y, _not_used1, _not_used2, _solve_state):

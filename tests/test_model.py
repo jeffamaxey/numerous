@@ -321,7 +321,7 @@ class StaticDataSystem(Subsystem):
         super().__init__(tag, external_mappings, data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataTest('tm' + str(i))
+            o = StaticDataTest(f'tm{str(i)}')
             o_s.append(o)
         # Register the items to the subsystem to make it recognize them.
         self.register_items(o_s)
@@ -332,7 +332,7 @@ class OuterSystem(Subsystem):
         super().__init__(tag, external_mappings, data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataTest('tm' + str(i))
+            o = StaticDataTest(f'tm{str(i)}')
             o_s.append(o)
         o_s.append(system)
         # Register the items to the subsystem to make it recognize them.

@@ -212,14 +212,14 @@ class LLVMBuilder:
         index = ll.IntType(64)(self.variable_names[variable_name])
         ptr = self.var_global
         indices = [self.index0, index]
-        eptr = self.builder.gep(ptr, indices, name="variable_" + variable_name)
+        eptr = self.builder.gep(ptr, indices, name=f"variable_{variable_name}")
         self.values[variable_name] = eptr
 
     def load_state_variable(self, idx, state_name):
         index_args = ll.IntType(64)(idx)
         ptr = self.func.args[0]
         indices = [index_args]
-        eptr = self.builder.gep(ptr, indices, name="state_" + state_name)
+        eptr = self.builder.gep(ptr, indices, name=f"state_{state_name}")
         self.values[state_name] = eptr
         ptr = self.var_global
         index_global = ll.IntType(64)(self.variable_names[state_name])
@@ -305,7 +305,7 @@ class LLVMBuilder:
                 self._store_to_global_target(t, loaded_args_ptr[0])
         else:
             accum = self.builder.fadd(loaded_args_ptr[0], loaded_args_ptr[1])
-            for i, a in enumerate(loaded_args_ptr[2:]):
+            for a in loaded_args_ptr[2:]:
                 accum = self.builder.fadd(accum, a)
 
             for t in targets:
@@ -317,7 +317,7 @@ class LLVMBuilder:
         for a in args:
             if a not in self.values:
                 self.load_global_variable(a)
-            loaded_args.append(self.builder.load(self.values[a], 'arg_' + a))
+            loaded_args.append(self.builder.load(self.values[a], f'arg_{a}'))
         return loaded_args
 
     def _get_target_pointers(self, targets):
@@ -355,14 +355,14 @@ class LLVMBuilder:
 
         size_ptr = ll.IntType(64)(size)
 
-        loop_cond = self.func.append_basic_block(name='for' + str(self.loopcount) + '.cond')
+        loop_cond = self.func.append_basic_block(name=f'for{str(self.loopcount)}.cond')
         self.builder.position_at_end(loop_cond)
-        i0 = self.builder.phi(ll.IntType(64), name='loop' + str(self.loopcount) + '.ix')
+        i0 = self.builder.phi(ll.IntType(64), name=f'loop{str(self.loopcount)}.ix')
 
         self.builder.position_at_end(self.bb_loop)
         self.builder.branch(loop_cond)
 
-        loop_body = self.func.append_basic_block(name='for' + str(self.loopcount) + '.body')
+        loop_body = self.func.append_basic_block(name=f'for{str(self.loopcount)}.body')
         self.builder.position_at_end(loop_body)
 
         loaded_args = []
@@ -373,21 +373,29 @@ class LLVMBuilder:
             self.builder.store(index_arg, index_arg_ptr)
 
             indices_arg = [self.index0, index_arg]
-            eptr_arg = self.builder.gep(self.var_global, indices_arg, name="loop_" + str(self.loopcount) + " _arg_")
+            eptr_arg = self.builder.gep(
+                self.var_global,
+                indices_arg,
+                name=f"loop_{str(self.loopcount)} _arg_",
+            )
             if i1 in targets_ids:
                 loaded_args.append(eptr_arg)
             else:
-                loaded_args.append(self.builder.load(eptr_arg, 'arg_' + str(self.loopcount) + "_" + str(i1)))
+                loaded_args.append(
+                    self.builder.load(
+                        eptr_arg, f'arg_{str(self.loopcount)}_{str(i1)}'
+                    )
+                )
 
         # EQ_system_SET_oscillators_mechanics_llvm
         self.builder.call(self.ext_funcs[external_function_name], loaded_args)
 
-        loop_inc = self.func.append_basic_block(name='for' + str(self.loopcount) + '.inc')
+        loop_inc = self.func.append_basic_block(name=f'for{str(self.loopcount)}.inc')
         self.builder.position_at_end(loop_inc)
         result = self.builder.add(i0, ll.IntType(64)(1), name="res")
         self.builder.branch(loop_cond)
 
-        loop_end = self.func.append_basic_block(name='main' + str(self.loopcount))
+        loop_end = self.func.append_basic_block(name=f'main{str(self.loopcount)}')
 
         self.builder.position_at_end(loop_cond)
         i0.add_incoming(ll.IntType(64)(0), self.bb_loop)

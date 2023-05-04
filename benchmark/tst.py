@@ -104,25 +104,21 @@ class ThermalCapacitancesSeries(Subsystem):
     def __init__(self, tag, Tinit=100, T0=25, num_nodes=10, k=1):
         super().__init__(tag)
 
-        items = []
-
-
         #Create N heat capacitances and connect them.
 
         inlet_node = Thermal_Capacitance('node0', C=10000, T0=Tinit)
-        items.append(inlet_node)
+        items = [inlet_node]
         prev_node = inlet_node
         for i in range(1,num_nodes):
 
             #Create thermal conductor
-            node = Thermal_Capacitance('node' + str(i), C=100, T0=T0)
+            node = Thermal_Capacitance(f'node{str(i)}', C=100, T0=T0)
             # Connect the last node to the new node with a conductor
             #thermal_conductor = Thermal_Conductor('thermal_conductor' + str(i), k=k)
-            thermal_conductor = Thermal_Conductor('thermal_conductor' + str(i), k=k, side1=prev_node, side2=node)
-            #thermal_conductor.bind(side1=prev_node, side2=node)
-            #Append the thermal conductor to the item.
-            items.append(thermal_conductor)
-            items.append(node)
+            thermal_conductor = Thermal_Conductor(
+                f'thermal_conductor{str(i)}', k=k, side1=prev_node, side2=node
+            )
+            items.extend((thermal_conductor, node))
             prev_node = node
 
         #Register the items to the subsystem to make it recognize them.

@@ -74,13 +74,7 @@ class ModelNamespace:
         """
         return variables ordered for sequential llvm addressing
         """
-        variables__ = []
-        for vs in self.variable_scope:
-            variables___ = []
-            for v in vs:
-                variables___.append(v)
-            variables__.append(variables___)
-
+        variables__ = [list(vs) for vs in self.variable_scope]
         variables__ = [list(x) for x in zip(*variables__)]
         variables__ = list(itertools.chain(*variables__))
         variables_ordered = [None] * len(variables__)
@@ -100,11 +94,11 @@ class ModelAssembler:
         tag, namespaces = input_namespace
         variables_ = {}
         for namespace in namespaces:
-            for i, (eq_tag, eq_methods) in enumerate(namespace.equation_dict.items()):
+            for eq_tag, eq_methods in namespace.equation_dict.items():
                 scope_id = "{0}_{1}_{2}".format(eq_tag, namespace.tag, tag, str(uuid.uuid4()))
-                equation_dict.update({scope_id: (eq_methods, namespace.outgoing_mappings)})
+                equation_dict[scope_id] = (eq_methods, namespace.outgoing_mappings)
             for v in namespace.ordered_variables():
-                variables_.update({v.id: v})
+                variables_[v.id] = v
 
         return variables_, equation_dict
 
@@ -131,13 +125,10 @@ class Model:
         self.path_to_variable = {}
         self.generate_graph_pdf = generate_graph_pdf
         self.export_model = export_model
-        if logger_level == None:
-            self.logger_level = LoggerLevel.ALL
-        else:
-            self.logger_level = logger_level
+        self.logger_level = LoggerLevel.ALL if logger_level is None else logger_level
         external_mappings_unpacked = system.get_external_mappings()
         self.system_external_mappings = external_mappings_unpacked
-        self.is_external_data = True if len(external_mappings_unpacked) else False
+        self.is_external_data = bool(len(external_mappings_unpacked))
         self.external_mappings = ExternalMapping(external_mappings_unpacked) if len(
             external_mappings_unpacked) else EmptyMapping()
 
@@ -214,7 +205,7 @@ class Model:
         if isinstance(item, Connector):
             for binded_item in item.get_binded_items():
                 if not binded_item.part_of_set:
-                    model_namespaces.update(self.__add_item(binded_item))
+                    model_namespaces |= self.__add_item(binded_item)
         if isinstance(item, Subsystem):
             for registered_item in item.registered_items.values():
                 model_namespaces.update(self.__add_item(registered_item))
@@ -249,8 +240,7 @@ class Model:
         assemble_start = time.time()
 
         # 1. Create list of model namespaces
-        model_namespaces = {item_id: _ns
-                            for item_id, _ns in self.__add_item(self.system).items()}
+        model_namespaces = dict(self.__add_item(self.system).items())
 
         # 2. Compute dictionaries
         # equation_dict <scope_id, [Callable]>
@@ -348,7 +338,7 @@ class Model:
     def assembly_tail(self):
         self.logged_aliases = {}
 
-        for i, variable in enumerate(self.variables.values()):
+        for variable in self.variables.values():
             if variable.temporary_variable:
                 continue
             if variable.logger_level is None:
@@ -377,10 +367,12 @@ class Model:
 
         for varname, ix in self.vars_ordered_values.items():  # now it's a dict...
             var = self.variables[varname]
-            if var.logger_level.value >= self.logger_level.value:
-                if varname in self.inverse_logged_aliases:
-                    for vv in self.inverse_logged_aliases[varname]:
-                        self.logged_variables.update({vv: ix})
+            if (
+                var.logger_level.value >= self.logger_level.value
+                and varname in self.inverse_logged_aliases
+            ):
+                for vv in self.inverse_logged_aliases[varname]:
+                    self.logged_variables.update({vv: ix})
 
         number_of_external_mappings = 0
         external_idx = []
@@ -400,9 +392,7 @@ class Model:
         for item in self.model_items.values():
             if item.events:
                 for event in item.events:
-                    if event.compiled:
-                        pass
-                    else:
+                    if not event.compiled:
                         event.condition = _replace_path_strings(self, event.condition, "var", item.path)
                         event.action = _replace_path_strings(self, event.action, "var", item.path)
 

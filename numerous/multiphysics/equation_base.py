@@ -22,8 +22,6 @@ class VariableDescriptionMap(VariableBase):
         else:
             self.variables_descriptions[variable_description.tag].update = True
             return
-            raise ValueError('Variable description with tag {} is already exist in equation {}'.format(
-                variable_description.tag, self.equation.tag))
 
     # refactored in a more functional way
     def __iter__(self):
@@ -88,9 +86,9 @@ class EquationBase:
                 scope.{integrate['tag']}_dot = scope.{tag} * {integrate['scale']}
             """
             ie = InlineEquation()
-            integrate_source_ = ie('integrate_' + tag, integrate_source, {})
+            integrate_source_ = ie(f'integrate_{tag}', integrate_source, {})
 
-            setattr(self, 'integrate_' + tag, integrate_source_)
+            setattr(self, f'integrate_{tag}', integrate_source_)
             self.equations.append(integrate_source_)
 
     def add_parameters(self, parameters: dict or list):
@@ -126,8 +124,13 @@ class EquationBase:
         self.add_variable(tag, value, VariableType.CONSTANT, logger_level, alias)
 
     def add_derivative(self, tag, logger_level=None, alias=None):
-        self.add_variable(tag + '_dot', 0, VariableType.DERIVATIVE, logger_level,
-                          alias + "_dot" if alias is not None else None)
+        self.add_variable(
+            f'{tag}_dot',
+            0,
+            VariableType.DERIVATIVE,
+            logger_level,
+            f"{alias}_dot" if alias is not None else None,
+        )
 
     def add_state(self, tag, init_val=0, logger_level=None, alias=None, create_derivative=True):
         """
@@ -146,8 +149,13 @@ class EquationBase:
             raise ValueError("State must be float or integer")
         self.add_variable(tag, init_val, VariableType.STATE, logger_level, alias)
         if create_derivative:
-            self.add_variable(tag + '_dot', 0, VariableType.DERIVATIVE, logger_level,
-                              alias + "_dot" if alias is not None else None)
+            self.add_variable(
+                f'{tag}_dot',
+                0,
+                VariableType.DERIVATIVE,
+                logger_level,
+                f"{alias}_dot" if alias is not None else None,
+            )
 
     def add_variable(self, tag, init_val, var_type, logger_level, alias):
         """

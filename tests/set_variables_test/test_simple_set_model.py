@@ -35,7 +35,7 @@ class SimpleSystem(Subsystem):
         simples = []
         for i in range(n):
             # Create oscillator
-            simple = Simple('simple' + str(i), k=k*(i+1), x0=x0[i])
+            simple = Simple(f'simple{str(i)}', k=k*(i+1), x0=x0[i])
             simples.append(simple)
 
         self.register_items(simples, tag="simples", structure=ItemsStructure.SET)
@@ -51,6 +51,15 @@ def test_simple_set_model(use_llvm):
     # Solve and plot
     s.solve()
     for i in range(n):
-        assert approx(s.model.historian_df['system.SET_simples.simple'+ str(i) +'.mechanics.x'][100], rel=0.01) ==\
-               s.model.historian_df['system.SET_simples.simple' + str(i) + '.mechanics.k'][100]
+        assert (
+            approx(
+                s.model.historian_df[
+                    f'system.SET_simples.simple{str(i)}.mechanics.x'
+                ][100],
+                rel=0.01,
+            )
+            == s.model.historian_df[
+                f'system.SET_simples.simple{str(i)}.mechanics.k'
+            ][100]
+        )
 

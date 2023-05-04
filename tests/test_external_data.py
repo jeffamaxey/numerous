@@ -32,8 +32,7 @@ def analytical_solution(tmax, g=9.81, f=0.05, x0=1):
         t_hits.append(t_hit)
         i += 1
 
-    t_hits = np.array(t_hits)
-    return t_hits
+    return np.array(t_hits)
 
 
 class StaticDataTest(EquationBase, Item):
@@ -59,7 +58,7 @@ class SubSubSystem(Subsystem):
         super(SubSubSystem, self).__init__(tag=tag, external_mappings=external_mappings, data_loader=data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataSystem('sub' + str(i))
+            o = StaticDataSystem(f'sub{str(i)}')
             o_s.append(o)
 
         for i in reversed(range(n - 1)):
@@ -75,7 +74,7 @@ class StaticDataSystem(Subsystem):
         super().__init__(tag, external_mappings, data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataTest('tm' + str(i))
+            o = StaticDataTest(f'tm{str(i)}')
             o_s.append(o)
         # Register the items to the subsystem to make it recognize them.
         self.register_items(o_s)
@@ -86,7 +85,7 @@ class OuterSystem(Subsystem):
         super().__init__(tag, external_mappings, data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataTest('tm' + str(i))
+            o = StaticDataTest(f'tm{str(i)}')
             o_s.append(o)
         o_s.append(system)
         # Register the items to the subsystem to make it recognize them.
@@ -134,7 +133,7 @@ class StaticDataSystemWithBall(Subsystem):
         super().__init__(tag, external_mappings, data_loader)
         o_s = []
         for i in range(n):
-            o = StaticDataTest('tm' + str(i))
+            o = StaticDataTest(f'tm{str(i)}')
             o_s.append(o)
         o_s.append(Ball())
         # Register the items to the subsystem to make it recognize them.
@@ -147,15 +146,13 @@ def step_solver(sim, t0: float, tmax: float, dt: float):
         t_new, t_ = sim.step_solve(t_, dt)
 
     sim.model.create_historian_df()
-    df = sim.model.historian_df
-    return df
+    return sim.model.historian_df
 
 
 def normal_solver(sim, t0: float, tmax: float, dt: float):
     sim.solve()
 
-    df = sim.model.historian_df
-    return df
+    return sim.model.historian_df
 
 
 def inmemorydataloader(df=None, **kwargs):
@@ -218,9 +215,6 @@ def simulation(tmpdir: tmpdir):
 @pytest.mark.parametrize("system", [StaticDataSystem, StaticDataSystemWithBall])
 @pytest.mark.parametrize("use_llvm", [True, False])
 def test_external_data_multiple(use_llvm, system, external_data):
-    external_mappings = []
-    external_mappings_outer = []
-
     t0 = 0
     tmax = 5
     dt_data = 0.1
@@ -239,12 +233,24 @@ def test_external_data_multiple(use_llvm, system, external_data):
         'system_outer.tm0.test_nm.T1': ("Dew Point Temperature {C}", InterpolationType.PIESEWISE),
         'system_outer.tm0.test_nm.T2': ('Dry Bulb Temperature {C}', InterpolationType.PIESEWISE),
     }
-    external_mappings.append(ExternalMappingElement
-                             ("inmemory", index_to_timestep_mapping, index_to_timestep_mapping_start, 1,
-                              dataframe_aliases))
-    external_mappings_outer.append((ExternalMappingElement
-                                    ("inmemory", index_to_timestep_mapping, index_to_timestep_mapping_start, 1,
-                                     dataframe_aliases_outer)))
+    external_mappings = [
+        ExternalMappingElement(
+            "inmemory",
+            index_to_timestep_mapping,
+            index_to_timestep_mapping_start,
+            1,
+            dataframe_aliases,
+        )
+    ]
+    external_mappings_outer = [
+        ExternalMappingElement(
+            "inmemory",
+            index_to_timestep_mapping,
+            index_to_timestep_mapping_start,
+            1,
+            dataframe_aliases_outer,
+        )
+    ]
     data_loader = InMemoryDataLoader(df)
     system_outer = OuterSystem('system_outer',
                                system('system_external', n=1, external_mappings=external_mappings,
@@ -373,8 +379,6 @@ class SimpleInt(Subsystem, EquationBase):
 
 @pytest.mark.parametrize("use_llvm", [True, False])
 def test_external_data_model_check_not_mapped(use_llvm):
-    external_mappings = []
-
     data = {'time': np.arange(101),
             'to_map': np.arange(101),
             }
@@ -385,9 +389,15 @@ def test_external_data_model_check_not_mapped(use_llvm):
     dataframe_aliases = {
         'system_external.t1.to_map': ("to_map", InterpolationType.PIESEWISE),
     }
-    external_mappings.append(ExternalMappingElement
-                             ("inmemory", index_to_timestep_mapping, index_to_timestep_mapping_start, 1,
-                              dataframe_aliases))
+    external_mappings = [
+        ExternalMappingElement(
+            "inmemory",
+            index_to_timestep_mapping,
+            index_to_timestep_mapping_start,
+            1,
+            dataframe_aliases,
+        )
+    ]
     data_loader = InMemoryDataLoader(df)
 
     m = Model(SimpleInt('system_external'), use_llvm=use_llvm)
@@ -409,8 +419,6 @@ def test_external_data_model_check_not_mapped(use_llvm):
 
 @pytest.mark.parametrize("use_llvm", [True, False])
 def test_external_data_system_check_not_mapped(use_llvm):
-    external_mappings = []
-
     data = {'time': np.arange(101),
             'to_map': np.arange(101),
             }
@@ -421,9 +429,15 @@ def test_external_data_system_check_not_mapped(use_llvm):
     dataframe_aliases = {
         'system_external.t1.to_map': ("to_map", InterpolationType.PIESEWISE),
     }
-    external_mappings.append(ExternalMappingElement
-                             ("inmemory", index_to_timestep_mapping, index_to_timestep_mapping_start, 1,
-                              dataframe_aliases))
+    external_mappings = [
+        ExternalMappingElement(
+            "inmemory",
+            index_to_timestep_mapping,
+            index_to_timestep_mapping_start,
+            1,
+            dataframe_aliases,
+        )
+    ]
     data_loader = InMemoryDataLoader(df)
 
     m = Model(SimpleInt('system_external', data_loader=data_loader, external_mappings=external_mappings),

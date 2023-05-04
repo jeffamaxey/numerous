@@ -18,7 +18,7 @@ def generate_event_condition_ast(event_functions: list[NumerousEvent],
     compiled_functions = {}
     for event in event_functions:
         if event.compiled_functions:
-            compiled_functions.update(event.compiled_functions)
+            compiled_functions |= event.compiled_functions
         directions_array.append(event.direction)
         body.append(event.condition)
         body.append(ast.Expr(value=ast.Call(
@@ -80,7 +80,7 @@ def generate_event_action_ast(event_functions: list[NumerousEvent],
     compiled_functions = {}
     for idx, event in enumerate(event_functions):
         if event.compiled_functions:
-            compiled_functions.update(event.compiled_functions)
+            compiled_functions |= event.compiled_functions
         body.append(event.action)
         body.append(ast.If(test=ast.Compare(left=ast.Name(id='a_idx', ctx=ast.Load()), ops=[ast.Eq()],
                                             comparators=[ast.Constant(value=idx)]),

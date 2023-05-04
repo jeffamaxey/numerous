@@ -75,25 +75,23 @@ class MappedValue(object):
             if self.mapping:
                 raise ValueError('It is not possible to add a summation to {0}. Variable already have mapping'
                                  ''.format(self.tag))
-            else:
-                self.add_sum_mapping(other)
-                self.special_mapping = True
-                return self
+            self.add_sum_mapping(other)
+            self.special_mapping = True
+            return self
         else:
             object.__iadd__(self, other)
 
     def __get_value(self, ids):
         if self.id in ids:
             return self.value
-        else:
-            if self.mapping:
-                return self.mapping.get_value()
-            if self.sum_mapping:
-                ids.append(self.id)
-                return reduce(add, [x.__get_value(ids) for x in self.sum_mapping])
+        if self.mapping:
+            return self.mapping.get_value()
+        if self.sum_mapping:
+            ids.append(self.id)
+            return reduce(add, [x.__get_value(ids) for x in self.sum_mapping])
 
-            else:
-                return self.value
+        else:
+            return self.value
 
     def get_value(self):
         if self.mapping:
@@ -119,13 +117,12 @@ class VariablePath:
         return iter(self.path.values())
 
     def extend_path(self, current_id, new_id, new_tag):
-        if not (current_id + new_id in self.used_id_pairs):
+        if current_id + new_id not in self.used_id_pairs:
             if new_id in self.path:
-                self.path[new_id].extend([new_tag + '.' + x for x in self.path[current_id]])
-                self.primary_path = new_tag + '.' + self.path[current_id][-1]
+                self.path[new_id].extend([f'{new_tag}.{x}' for x in self.path[current_id]])
             else:
-                self.path.update({new_id: [new_tag + '.' + x for x in self.path[current_id]]})
-                self.primary_path = new_tag + '.' + self.path[current_id][-1]
+                self.path.update({new_id: [f'{new_tag}.{x}' for x in self.path[current_id]]})
+            self.primary_path = f'{new_tag}.{self.path[current_id][-1]}'
             self.used_id_pairs.append(current_id + new_id)
 
 
@@ -224,10 +221,9 @@ class Variable(MappedValue):
             print('path: ', self.get_path_dot())
             print('set_var: ', set_var)
             print('ns: ', set_namespace.tag)
-        else:
-            if self.set_var != set_var:
-                print(self.set_var, ' ', set_var)
-                raise ValueError(f'Setvar for {self.id} already set!')
+        elif self.set_var != set_var:
+            print(self.set_var, ' ', set_var)
+            raise ValueError(f'Setvar for {self.id} already set!')
 
     @staticmethod
     def create(namespace, v_id, tag,
@@ -270,19 +266,18 @@ class _VariableFactory:
 
     @staticmethod
     def _create_from_variable_desc_unbound(initial_value, variable_description):
-        v1 = Variable.create(namespace=None,
-                             v_id="{0}_{1}".format(variable_description.tag, uuid.uuid4()),
-                             tag=variable_description.tag,
-                             v_type=variable_description.type,
-                             value=initial_value,
-                             item=None,
-                             metadata={},
-                             mapping=None,
-                             update_counter=0,
-                             allow_update=(variable_description.type != VariableType.CONSTANT),
-                             logger_level=variable_description.logger_level,
-                             alias=variable_description.alias,
-                             variable_idx=0
-                             )
-
-        return v1
+        return Variable.create(
+            namespace=None,
+            v_id="{0}_{1}".format(variable_description.tag, uuid.uuid4()),
+            tag=variable_description.tag,
+            v_type=variable_description.type,
+            value=initial_value,
+            item=None,
+            metadata={},
+            mapping=None,
+            update_counter=0,
+            allow_update=(variable_description.type != VariableType.CONSTANT),
+            logger_level=variable_description.logger_level,
+            alias=variable_description.alias,
+            variable_idx=0,
+        )

@@ -5,8 +5,5 @@ array = np.arange(100)+100
 
 @njit
 def h_test(q):
-    if q>0:
-        return (array[int(q)] + 1,1)
-    else:
-        return 0,1
+    return (array[int(q)] + 1, 1) if q>0 else (0, 1)
 

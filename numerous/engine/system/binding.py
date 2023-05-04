@@ -76,4 +76,4 @@ class Binding:
             -------
             is_bindend : bool
               """
-        return not (self.binded_item is None)
+        return self.binded_item is not None

@@ -225,7 +225,15 @@ class AstVisitor(ast.NodeVisitor):
         self.traverse(node.left)
         start = self.node_number_stack.pop()
         self.mapped_stack.pop()
-        self.graph.add_edge(Edge(start=start[0], end=en, label=f'left', e_type=EdgeType.LEFT, branches=self.branches))
+        self.graph.add_edge(
+            Edge(
+                start=start[0],
+                end=en,
+                label='left',
+                e_type=EdgeType.LEFT,
+                branches=self.branches,
+            )
+        )
         for i, sa in enumerate(node.comparators):
             self.traverse(sa)
             start = self.node_number_stack.pop()
@@ -289,8 +297,11 @@ def connect_equation_node(equation_graph, mappings_graph, node, is_set, include_
                     except StopIteration:
                         pass
 
-            elif include_local and equation_graph.get(n, attr='key') and \
-                    not equation_graph.get(n, attr='ast_type') == ast.Constant:
+            elif (
+                include_local
+                and equation_graph.get(n, attr='key')
+                and equation_graph.get(n, attr='ast_type') != ast.Constant
+            ):
                 var_key = equation_graph.get(n, attr='key')
                 neq = mappings_graph.add_node(Node(key=var_key, node_type=NodeTypes.VAR,
                                                    is_set_var=is_set, ast_type=equation_graph.get(n, attr='ast_type'),

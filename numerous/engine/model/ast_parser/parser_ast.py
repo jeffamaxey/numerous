@@ -20,20 +20,14 @@ class ParsedEquation:
 
 def attr_ast(attr):
     attr_ = attr.split('.')
-    if len(attr_) > 1:
-        prev = None
-        attr_str = attr_[-1]
-        attr_ = attr_[:-1]
-        for a in attr_:
-            if not prev:
-                prev = ast.Name(id=a)
-            else:
-                prev = ast.Attribute(attr=a, value=prev)
-
-        attr_ast = ast.Attribute(attr=attr_str, value=prev)
-    else:
-        attr_ast = ast.Name(id=attr_[0])
-    return attr_ast
+    if len(attr_) <= 1:
+        return ast.Name(id=attr_[0])
+    prev = None
+    attr_str = attr_[-1]
+    attr_ = attr_[:-1]
+    for a in attr_:
+        prev = ast.Attribute(attr=a, value=prev) if prev else ast.Name(id=a)
+    return ast.Attribute(attr=attr_str, value=prev)
 
 
 # Add nodes and edges to a graph
@@ -41,7 +35,7 @@ tmp_count = [0]
 
 
 def tmp(a):
-    a += '_' + str(tmp_count[0])
+    a += f'_{str(tmp_count[0])}'
     tmp_count[0] += 1
     return a
 
@@ -50,7 +44,7 @@ ass_count = [0]
 
 
 def ass(a):
-    a += '_' + str(ass_count[0])
+    a += f'_{str(ass_count[0])}'
     ass_count[0] += 1
     return a
 
@@ -63,7 +57,7 @@ def postfix_from_branches(branches: dict):
 
 
 def qualify(s, prefix):
-    return prefix + '.' + s.replace('scope.', '')
+    return f'{prefix}.' + s.replace('scope.', '')
 
 
 def qualify_equation(prefix, g, tag_vars, eq_class, eq_current):
@@ -101,17 +95,22 @@ def qualify_equation(prefix, g, tag_vars, eq_class, eq_current):
 
     replacements_id = {k: id(o) for k, o in replacements.items()}
 
-    eq_key = 'var_' + eq_current + '_' + hashlib.sha256(json.dumps(replacements_id).encode('UTF-8')).hexdigest()
+    eq_key = (
+        f'var_{eq_current}_'
+        + hashlib.sha256(
+            json.dumps(replacements_id).encode('UTF-8')
+        ).hexdigest()
+    )
 
     return g_qual, refer_to_self, eq_key, replacements
 
 
 def _generate_equation_key(equation_id: str, is_set: bool) -> str:
-    if is_set:
-        eq_key = "EQ_SET" + equation_id.replace(".", "_").replace("-", "_")
-    else:
-        eq_key = "EQ_" + equation_id.replace(".", "_").replace("-", "_")
-    return eq_key
+    return (
+        "EQ_SET" + equation_id.replace(".", "_").replace("-", "_")
+        if is_set
+        else "EQ_" + equation_id.replace(".", "_").replace("-", "_")
+    )
 
 
 def parse_eq(model_namespace, item_id, mappings_graph: Graph, scope_variables,
@@ -149,7 +148,7 @@ def parse_eq(model_namespace, item_id, mappings_graph: Graph, scope_variables,
                         a.update({b: True})
 
                     all_branches += deepcopy(all_branches)
-                    for a in all_branches[int(len(all_branches) / 2):]:
+                    for a in all_branches[len(all_branches) // 2:]:
                         a[b] = False
 
                 if len(all_branches) > 1:
@@ -165,27 +164,23 @@ def parse_eq(model_namespace, item_id, mappings_graph: Graph, scope_variables,
                                     gb.remove_edge(i)
 
                         gb = gb.clean()
-                        branch_graphs.append((a, gb, eq_key + '_' + postfix_from_branches(a)))
+                        branch_graphs.append((a, gb, f'{eq_key}_{postfix_from_branches(a)}'))
 
                     for branch in branch_graphs:
                         parsed_eq_branches[branch[2]] = ParsedEquation(eq, dsource, branch[1], branch[0])
 
                 else:
                     parsed_eq_branches[eq_key] = ParsedEquation(eq, dsource, g, {})
-                parsed_eq[eq_key] = 'EQ_' + ns_path + '.' + eq.name
+                parsed_eq[eq_key] = f'EQ_{ns_path}.{eq.name}'
 
             g = parsed_eq_branches[eq_key].graph
 
-            eq_path = ns_path + '.' + eq_key
+            eq_path = f'{ns_path}.{eq_key}'
             g_qualified, refer_to_self, eq_key_, replacements = qualify_equation(ns_path, g, scope_variables, eq,
                                                                                  eq_key)
 
             if len(replacements) > 0:
-                if refer_to_self:
-                    eq_key__ = eq_key_
-                else:
-                    eq_key__ = eq_key
-
+                eq_key__ = eq_key_ if refer_to_self else eq_key
                 parsed_eq_branches[eq_key__] = ParsedEquation(
                     parsed_eq_branches[eq_key].eq, parsed_eq_branches[eq_key].dsource, parsed_eq_branches[eq_key].graph,
                     {},
@@ -196,7 +191,7 @@ def parse_eq(model_namespace, item_id, mappings_graph: Graph, scope_variables,
             eq_used.append(eq_key)
 
             # make equation graph
-            eq_name = ('EQ_' + eq_path).replace('.', '_')
+            eq_name = f'EQ_{eq_path}'.replace('.', '_')
 
             scoped_equations[eq_name] = eq_key
 

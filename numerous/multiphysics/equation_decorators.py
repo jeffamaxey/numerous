@@ -13,8 +13,7 @@ class NumerousFunction(object):
         self.signature = signature
 
     def __call__(self, func):
-        njited_func = njit(func)
-        return njited_func
+        return njit(func)
 
 
 class Equation(object):

@@ -94,14 +94,14 @@ class ThermalSystem(Subsystem):
         last_tm = None
         for i in range(n):
             # Create oscillator
-            thermalmass = ThermalMass('thermalmass' + str(i), T0=T0[i])
+            thermalmass = ThermalMass(f'thermalmass{str(i)}', T0=T0[i])
             thermalmasses.append(thermalmass)
 
         self.register_items(thermalmasses, tag="thermalmasses", structure=ItemsStructure.SET)
 
         for i in range(n):
             if i>0:
-                tc = ThermalConductivity('tc'+str(i))
+                tc = ThermalConductivity(f'tc{str(i)}')
                 tc.bind(side1=thermalmasses[i-1], side2=thermalmasses[i])
                 #tc.side1.thermal.P += tc.thermal.P1
                 #tc.side2.thermal.P += tc.thermal.P2

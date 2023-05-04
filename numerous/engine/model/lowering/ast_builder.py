@@ -86,7 +86,9 @@ class ASTBuilder:
 
         for i in self.body:
             if hasattr(i, 'cnd') and i.cnd:
-                arguments.append(ast.arg(arg=i.body[0].value.func.id+'_flag', annotation=None))
+                arguments.append(
+                    ast.arg(arg=f'{i.body[0].value.func.id}_flag', annotation=None)
+                )
                 defaults.append(ast.Constant(i.active))
 
         kernel = wrap_function('global_kernel', self.read_args_section + self.body + self.return_section,
@@ -96,11 +98,14 @@ class ASTBuilder:
                                                   kwarg=None, kwonlyargs=[]))
         variable_names_print = []
         for key, value in self.variable_names.items():
-            variable_names_print.append('#' + str(key) + ' : ' + str(value))
-        code = generate_code_file([x for x in self.functions] + self.body_init_set_var + [kernel], self.kernel_filename,
-                                  imports,
-                                  external_functions_source=external_functions_source,
-                                  names='\n'.join(variable_names_print) + '\n')
+            variable_names_print.append(f'#{str(key)} : {str(value)}')
+        code = generate_code_file(
+            list(self.functions) + self.body_init_set_var + [kernel],
+            self.kernel_filename,
+            imports,
+            external_functions_source=external_functions_source,
+            names='\n'.join(variable_names_print) + '\n',
+        )
 
         kernel_module = types.ModuleType('python_kernel')
         if self.replacements:
@@ -110,7 +115,7 @@ class ASTBuilder:
             os.makedirs(os.path.dirname(self.kernel_filename), exist_ok=True)
             with open(self.kernel_filename, 'w') as f:
                 f.write(code)
-            exec('from tmp.listings.' + system_tag + '_kernel import *', globals())
+            exec(f'from tmp.listings.{system_tag}_kernel import *', globals())
 
             def var_func():
                 return kernel_variables
@@ -140,7 +145,9 @@ class ASTBuilder:
 
         for i in self.body:
             if hasattr(i, 'cnd') and i.cnd:
-                arguments.append(ast.arg(arg=i.body[0].value.func.id+'_flag', annotation=None))
+                arguments.append(
+                    ast.arg(arg=f'{i.body[0].value.func.id}_flag', annotation=None)
+                )
                 defaults.append(ast.Constant(i.active))
 
         kernel = wrap_function('global_kernel', self.read_args_section + self.body + self.return_section,
@@ -148,15 +155,17 @@ class ASTBuilder:
                                args=ast.arguments(posonlyargs=[], args=arguments, vararg=None,
                                                   defaults=defaults,
                                                   kwarg=None, kwonlyargs=[]))
-        variable_names_print = []
-        for key, value in self.variable_names.items():
-            variable_names_print.append('#' + str(key) + ' : ' + str(value))
-        code = generate_code_file([x for x in self.functions] + self.body_init_set_var + [kernel], self.kernel_filename,
-                                  imports,
-                                  external_functions_source=external_functions_source,
-                                  names='\n'.join(variable_names_print) + '\n')
-
-        return code
+        variable_names_print = [
+            f'#{str(key)} : {str(value)}'
+            for key, value in self.variable_names.items()
+        ]
+        return generate_code_file(
+            list(self.functions) + self.body_init_set_var + [kernel],
+            self.kernel_filename,
+            imports,
+            external_functions_source=external_functions_source,
+            names='\n'.join(variable_names_print) + '\n',
+        )
 
     def detailed_print(self, *args, sep=' ', end='\n', file=None):
         if config.PRINT_LLVM:
@@ -167,52 +176,78 @@ class ASTBuilder:
 
     def _create_assignments(self, external_function_name, input_args, target_ids):
         arg_ids = map(lambda arg: self.variable_names[arg], input_args)
-        targets = []
-        args = []
-        for target_id in target_ids:
-            targets.append(
-                ast.Subscript(value=GLOBAL_ARRAY,
-                              slice=ast.Index(value=ast.Constant(value=self.variable_names[input_args[target_id]])),
-                              ctx=ast.Store()))
-        for arg_id in arg_ids:
-            args.append(
-                ast.Subscript(value=GLOBAL_ARRAY, slice=ast.Index(value=ast.Constant(value=arg_id)),
-                              ctx=ast.Load))
-
-        if len(targets) > 1:
-            temp = (ast.Assign(targets=[ast.Tuple(elts=targets)],
-                               value=ast.Call(func=ast.Name(id=external_function_name, ctx=ast.Load()),
-                                              args=args, keywords=[]), lineno=0))
-        else:
-            temp = (ast.Assign(targets=[targets[0]],
-                               value=ast.Call(func=ast.Name(id=external_function_name, ctx=ast.Load()),
-                                              args=args, keywords=[]), lineno=0))
-        return temp
+        targets = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(
+                    value=ast.Constant(
+                        value=self.variable_names[input_args[target_id]]
+                    )
+                ),
+                ctx=ast.Store(),
+            )
+            for target_id in target_ids
+        ]
+        args = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(value=ast.Constant(value=arg_id)),
+                ctx=ast.Load,
+            )
+            for arg_id in arg_ids
+        ]
+        return (
+            (
+                ast.Assign(
+                    targets=[ast.Tuple(elts=targets)],
+                    value=ast.Call(
+                        func=ast.Name(id=external_function_name, ctx=ast.Load()),
+                        args=args,
+                        keywords=[],
+                    ),
+                    lineno=0,
+                )
+            )
+            if len(targets) > 1
+            else (
+                ast.Assign(
+                    targets=[targets[0]],
+                    value=ast.Call(
+                        func=ast.Name(id=external_function_name, ctx=ast.Load()),
+                        args=args,
+                        keywords=[],
+                    ),
+                    lineno=0,
+                )
+            )
+        )
 
     def add_conditional_call(self,external_function_name, input_args, target_ids, tag, active=True):
         active=active
 
         arg_ids = map(lambda arg: self.variable_names[arg], input_args)
-        targets=[]
-        args=[]
-
-        for target_id in target_ids:
-            targets.append(
-                ast.Subscript(value=GLOBAL_ARRAY,
-                              slice=ast.Index(value=ast.Constant(value=self.variable_names[input_args[target_id]])),
-                              ctx=ast.Store()))
-
-        for arg_id in arg_ids:
-            args.append(
-                ast.Subscript(value=GLOBAL_ARRAY, slice=ast.Index(value=ast.Constant(value=arg_id)),
-                              ctx=ast.Load))
-
-        if len(targets) > 1:
-            targets=[ast.Tuple(elts=targets)]
-        else:
-            targets=[targets[0]]
-
-        ast_condition = ast.Name(id=external_function_name + '_flag', ctx=ast.Load())
+        targets = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(
+                    value=ast.Constant(
+                        value=self.variable_names[input_args[target_id]]
+                    )
+                ),
+                ctx=ast.Store(),
+            )
+            for target_id in target_ids
+        ]
+        args = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(value=ast.Constant(value=arg_id)),
+                ctx=ast.Load,
+            )
+            for arg_id in arg_ids
+        ]
+        targets = [ast.Tuple(elts=targets)] if len(targets) > 1 else [targets[0]]
+        ast_condition = ast.Name(id=f'{external_function_name}_flag', ctx=ast.Load())
 
         temp=ast.If(test=ast_condition, body=[
             ast.Assign(targets=targets, value=
@@ -244,9 +279,7 @@ class ASTBuilder:
             target = [target]
             if len(target) > 1:
                 raise ValueError("Only mapping to single target is supported")
-            arg_idxs = []
-            for arg in args:
-                arg_idxs.append(self.variable_names[arg])
+            arg_idxs = [self.variable_names[arg] for arg in args]
             target_idx = self.variable_names[target[0]]
             if len(args) == 1:
                 temp=(ast.Assign(targets=[ast.Subscript(value=GLOBAL_ARRAY,
@@ -297,29 +330,42 @@ class ASTBuilder:
         self.body.append(temp)
     def _generate_set_call_body(self, external_function_name, arg_length, strart_idx, target_ids):
         arg_ids = np.arange(arg_length)
-        targets = []
-        args = []
-
-        for target_id in target_ids:
-            targets.append(ast.Subscript(value=GLOBAL_ARRAY,
-                                         slice=ast.Index(
-                                             value=ast.BinOp(
-                                                 left=ast.Constant(value=target_id + strart_idx),
-                                                 op=ast.Add(),
-                                                 right=ast.BinOp(left=ast.Constant(value=arg_length, kind=None),
-                                                                 op=ast.Mult(),
-                                                                 right=ast.Name(id='i', ctx=ast.Load())))),
-                                         ctx=ast.Store()))
-
-        for arg_id in arg_ids:
-            args.append(
-                ast.Subscript(value=GLOBAL_ARRAY, slice=ast.Index(value=ast.BinOp(
-                    left=ast.Constant(value=arg_id + strart_idx),
-                    op=ast.Add(),
-                    right=ast.BinOp(left=ast.Constant(value=arg_length, kind=None),
-                                    op=ast.Mult(),
-                                    right=ast.Name(id='i', ctx=ast.Load())))),
-                              ctx=ast.Load))
+        targets = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(
+                    value=ast.BinOp(
+                        left=ast.Constant(value=target_id + strart_idx),
+                        op=ast.Add(),
+                        right=ast.BinOp(
+                            left=ast.Constant(value=arg_length, kind=None),
+                            op=ast.Mult(),
+                            right=ast.Name(id='i', ctx=ast.Load()),
+                        ),
+                    )
+                ),
+                ctx=ast.Store(),
+            )
+            for target_id in target_ids
+        ]
+        args = [
+            ast.Subscript(
+                value=GLOBAL_ARRAY,
+                slice=ast.Index(
+                    value=ast.BinOp(
+                        left=ast.Constant(value=arg_id + strart_idx),
+                        op=ast.Add(),
+                        right=ast.BinOp(
+                            left=ast.Constant(value=arg_length, kind=None),
+                            op=ast.Mult(),
+                            right=ast.Name(id='i', ctx=ast.Load()),
+                        ),
+                    )
+                ),
+                ctx=ast.Load,
+            )
+            for arg_id in arg_ids
+        ]
         if len(targets) > 1:
             return ast.Assign(targets=[ast.Tuple(elts=targets)],
                               value=ast.Call(func=ast.Name(id=external_function_name, ctx=ast.Load()),

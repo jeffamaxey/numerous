@@ -12,7 +12,7 @@ class _DictWrapper(object):
         return self.shadow_dict[y]
 
     def __getattribute__(self, item):
-        if item == 'shadow_dict' or item == '__setstate__' or item == '__dict__':
+        if item in ['shadow_dict', '__setstate__', '__dict__']:
             return object.__getattribute__(self, item)
         if item in self.shadow_dict:
             return self.shadow_dict[item]

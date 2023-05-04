@@ -88,7 +88,9 @@ class Graph:
         if not node.key:
             node.key = tmp_generator()
         if node.key not in self.node_map or ignore_existing:
-            if not node.key in self.node_map:
+            if node.key in self.node_map:
+                node_n = self.node_map[node.key]
+            else:
 
                 node_n = self.node_counter
                 self.node_map[node.key] = node_n
@@ -98,19 +100,16 @@ class Graph:
                 if self.node_counter > self.allocated:
                     raise ValueError('Exceeding allocation')
 
-            else:
-                node_n = self.node_map[node.key]
             node.node_n = node_n
             if node_n < len(self.nodes):
                 self.nodes[node_n] = node
             else:
                 self.nodes.append(node)
 
+        elif not skip_existing:
+            raise ValueError(f'Node with key already in graph <{node.key}>')
         else:
-            if not skip_existing:
-                raise ValueError(f'Node with key already in graph <{node.key}>')
-            else:
-                return self.node_map[node.key]
+            return self.node_map[node.key]
         return node_n
 
     def add_edge(self, edge: Edge):
@@ -123,8 +122,6 @@ class Graph:
             raise ValueError('Exceeding allocation')
         self.edges_c.append(edge)
         edge.edge_n = edge_n
-        if edge.e_type == EdgeType.TARGET:
-            pass
         return edge_n
 
     def set_edge(self, edge, start=None, end=None):
@@ -155,10 +152,7 @@ class Graph:
         def filter_function(node):
             if node.deleted:
                 return False
-            if getattr(node, attr) == val:
-                return True and not not_
-            else:
-                return False or not_
+            return True and not not_ if getattr(node, attr) == val else False or not_
 
         return [node.node_n for node in filter(filter_function, self.nodes)]
 
@@ -186,10 +180,10 @@ class Graph:
         if not self.node_edges:
             self.build_node_edges()
 
-        if not start_node is None:
+        if start_node is not None:
             ix = self.node_edges[start_node][0]
 
-        if not end_node is None:
+        if end_node is not None:
             ix = self.node_edges[end_node][1]
 
         if start_node is None and end_node is None:
@@ -198,12 +192,7 @@ class Graph:
             raise ValueError('Need at least one node!')
 
         def filter_function(edge):
-            if edge.deleted:
-                return False
-            if getattr(edge, attr) == val:
-                return True
-            else:
-                return False
+            return False if edge.deleted else getattr(edge, attr) == val
 
         ix_r = [edge.edge_n for edge in filter(filter_function, map(self.edges_c.__getitem__, ix))]
         return ix_r, [self.edges[i, :] for i in ix_r]
@@ -250,24 +239,29 @@ class Graph:
         return subgraph
 
     def as_graphviz(self, file, force=False):
-        if False or force:
-            dot = Digraph()
-            for k, n in self.node_map.items():
-                dot.node(k, label=self.nodes[n].label)
+        if not force:
+            return
+        dot = Digraph()
+        for k, n in self.node_map.items():
+            dot.node(k, label=self.nodes[n].label)
 
-            for i, e in enumerate(self.edges[:self.edge_counter]):
-                if not self.edges_c[i].deleted:
-                    try:
-                        if e[0] >= 0 and e[1] >= 0:
-                            dot.edge(self.key_map[e[0]], self.key_map[e[1]], label=str(self.edges_c[i].e_type))
-                    except Exception as e:
-                        print(e)
-                        raise
+        for i, e in enumerate(self.edges[:self.edge_counter]):
+            if not self.edges_c[i].deleted:
+                try:
+                    if e[0] >= 0 and e[1] >= 0:
+                        dot.edge(self.key_map[e[0]], self.key_map[e[1]], label=str(self.edges_c[i].e_type))
+                except Exception as e:
+                    print(e)
+                    raise
 
-            dot.render(file, view=True, format='pdf')
+        dot.render(file, view=True, format='pdf')
 
     def zero_in_degree(self):
-        return [n for n in self.node_map.values() if len(list(self.get_edges_for_node(end_node=n))) == 0]
+        return [
+            n
+            for n in self.node_map.values()
+            if not list(self.get_edges_for_node(end_node=n))
+        ]
 
     def make_lower_graph(self, top_sort=False):
         self.lower_graph = _Graph(self.node_counter,

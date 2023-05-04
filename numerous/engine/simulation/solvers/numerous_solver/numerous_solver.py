@@ -126,9 +126,9 @@ class Numerous_solver(BaseSolver):
 
     def generate_solver(self):
         def _solve(numba_model, _solve_state, initial_step, dt_0, order, order_, roller, strict_eval,
-                   min_step, max_step, step_integrate_, events, actions, g, number_of_events, event_directions,
-                   run_event_action, get_solver_event_id, timestamps, timestamp_actions,
-                   t0=0.0, t_end=1000.0, t_eval=np.linspace(0.0, 1000.0, 100), ix_eval=1, event_tolerance=1e-6):
+                       min_step, max_step, step_integrate_, events, actions, g, number_of_events, event_directions,
+                       run_event_action, get_solver_event_id, timestamps, timestamp_actions,
+                       t0=0.0, t_end=1000.0, t_eval=np.linspace(0.0, 1000.0, 100), ix_eval=1, event_tolerance=1e-6):
 
             # Init t to t0
             imax = 100
@@ -146,9 +146,7 @@ class Numerous_solver(BaseSolver):
             te_array = np.zeros(2)
 
             def is_internal_historian_update_needed(t_next_eval, t):
-                if abs(t_next_eval - t) < 100 * FEPS:
-                    return True
-                return False
+                return abs(t_next_eval - t) < 100 * FEPS
 
             def handle_converged(t, dt, ix_eval, t_next_eval):
 
@@ -180,7 +178,7 @@ class Numerous_solver(BaseSolver):
                 if o == order:
                     y_temp = rb[2][:, :]
                     t_temp = rb[1]
-                    rb[1][0:order - 1] = t_temp[1:order]
+                    rb[1][:order - 1] = t_temp[1:order]
                     rb[2][0:order - 1, :] = y_temp[1:order, :]
 
                 o = min(o + 1, order)
@@ -254,8 +252,8 @@ class Numerous_solver(BaseSolver):
 
                 def sol(t, t_r, y_r):
                     yi = np.zeros(len(y))
-                    tv = np.append(roller[1][0:order], t_r)
-                    yv = np.append(roller[2][0:order], y_r)
+                    tv = np.append(roller[1][:order], t_r)
+                    yv = np.append(roller[2][:order], y_r)
                     yv = yv.reshape(order + 1, len(y)).T
                     for i, yvi in enumerate(yv):
                         yi[i] = np.interp(t, tv, yvi)
@@ -359,7 +357,7 @@ class Numerous_solver(BaseSolver):
 
                     numba_model.map_external_data(t)
                     ix_eval, t_start, t_next_eval, t_new_test, dt = \
-                        handle_converged(t, dt, ix_eval, t_next_eval)
+                            handle_converged(t, dt, ix_eval, t_next_eval)
 
                     if abs(t - t_end) < 100 * FEPS:
                         solve_status = SolveStatus.Finished
@@ -381,8 +379,6 @@ class Numerous_solver(BaseSolver):
 
         logging.info("Compiling Numerous Solver")
         generation_start = time.time()
-
-        argtypes = []
 
         max_step = self.method_options.get('max_step')
         min_step = self.method_options.get('min_step')
@@ -415,8 +411,7 @@ class Numerous_solver(BaseSolver):
                 1,
                 self.method_options.get('atol')
                 )
-        for a in args:
-            argtypes.append(self._non_compiled_solve.typeof_pyval(a))
+        argtypes = [self._non_compiled_solve.typeof_pyval(a) for a in args]
         # Return the solver function
 
         _solve = self._non_compiled_solve.compile(tuple(argtypes))
@@ -471,11 +466,7 @@ class Numerous_solver(BaseSolver):
         scale = atol + np.abs(y0) * rtol
         d0 = np.linalg.norm(y0 / scale)
         d1 = np.linalg.norm(f0 / scale)
-        if d0 < 1e-5 or d1 < 1e-5:
-            h0 = 1e-6
-        else:
-            h0 = 0.01 * d0 / d1
-
+        h0 = 1e-6 if d0 < 1e-5 or d1 < 1e-5 else 0.01 * d0 / d1
         y1 = y0 + h0 * direction * f0
         f1 = nm.func(t0 + h0 * direction, y1)
         d2 = np.linalg.norm((f1 - f0) / scale) / h0
@@ -493,8 +484,7 @@ class Numerous_solver(BaseSolver):
     def _init_roller(self, order):
         n = order + 2
         rb0 = np.zeros((n, len(self.y0)))
-        roller = (n, np.zeros(n), rb0)
-        return roller
+        return n, np.zeros(n), rb0
 
     def load_external_data(self, t):
         is_external_data = self.model.external_mappings.load_new_external_data_batch(t)
@@ -595,7 +585,7 @@ class Numerous_solver(BaseSolver):
 
         if self.use_no_state_solver():
             dt = self.time[1] - self.time[0]
-            for t in self.time[0:-1]:
+            for t in self.time[:-1]:
                 self._no_state_solver_step(t, dt)
             return self.sol, self.result_status
 
